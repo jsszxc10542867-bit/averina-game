@@ -1,0 +1,31 @@
+{
+  "maxDay": 40,
+  "rescueSignal": 16,
+  "moraleMax": 10,
+  "start": {
+    "food": 16,
+    "fuel": 10,
+    "med": 3,
+    "morale": 6,
+    "people": 5
+  },
+  "ration": {
+    "full": 0.6,
+    "half": 0.3,
+    "rounding": "ceil"
+  },
+  "nightly": {
+    "wardFuel": 1,
+    "ritualFuel": 1,
+    "ritualSignal": 1,
+    "ritualSignalWithRadio": 2,
+    "forageFood": 2,
+    "forageFuel": 1,
+    "forageSickChance": 0.2,
+    "starvePenaltyMorale": -2,
+    "starveDeathIfShort": 2,
+    "noWardMorale": -1,
+    "fedAndWarmMorale": 1,
+    "sickNoMedDeathChance": 0.5
+  }
+}

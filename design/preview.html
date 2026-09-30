@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Avernia 디자인 미리보기</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+  /* 미리보기 전용: 시간대 전환 버튼 */
+  #bands { position: fixed; top: 34px; left: 0; right: 0; z-index: 3; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; padding: 0 16px; }
+  #bands button { font: 12px/1 sans-serif; padding: 6px 10px; border-radius: 4px; border: 1px solid var(--line); background: var(--bg); color: var(--dim); cursor: pointer; }
+  #bands button.on { color: var(--fg); border-color: var(--acc); }
+  #app { padding-top: 90px; }
+</style>
+</head>
+<body data-band="afternoon">
+<div id="hud">첫날 오후 · 계곡</div>
+<div id="bands"></div>
+<div id="app">
+  <div id="story">
+    <p class="line in">물이 차갑다. 손끝이 저릴 만큼.</p>
+    <p class="line in">{이름}은 계곡을 따라 조금 더 내려간다.</p>
+    <p class="line in gap"></p>
+    <p class="line in dim">새소리가 멀어졌다.</p>
+    <p class="line in know">……이건 먹으면 안 되는 거였다.</p>
+    <p class="line in sys">[???]</p>
+    <p class="line in">「엘도사…… 칸이!」</p>
+    <p class="line in sys">……감각에 대한 이해도가 상승했다.</p>
+    <p class="line in gap"></p>
+    <p class="line in note">· 계곡 — 물을 마실 수 있다</p>
+    <p class="line in note dim">· 「베르칸」 ……자주 들린다. 뜻은 모른다.</p>
+    <p class="line in gap"></p>
+    <p class="line in stat">━━━━━━━━━━━━━━━━</p>
+    <p class="line in stat head">이름</p>
+    <p class="line in stat">━━━━━━━━━━━━━━━━</p>
+    <p class="line in stat">힘　　　　 ?</p>
+    <p class="line in stat">감각　　　 3</p>
+    <p class="line in stat">━━━━━━━━━━━━━━━━</p>
+    <p class="line in gap"></p>
+    <p class="line in death">죽었다</p>
+    <p class="line in dim center">3번째 죽음</p>
+    <div class="more">▾</div>
+  </div>
+  <div id="choices" class="in">
+    <button class="choice"><span class="num">1</span><span class="lbl">물을 마신다</span></button>
+    <button class="choice"><span class="num">2</span><span class="lbl">계곡을 따라간다</span><span class="hint">· 아는 길</span></button>
+    <div class="sep"></div>
+    <button class="choice" disabled><span class="num">3</span><span class="lbl">높은 곳으로 올라간다</span></button>
+  </div>
+  <form id="freeRow"><input id="free" placeholder="무엇을 할까…  (예: 물을 마신다)"></form>
+  <div class="nameRow" style="margin-top:24px"><input placeholder="이름"></div>
+  <p class="err">……이름이 흐릿하다. (한글·영문·숫자 1~8자)</p>
+</div>
+<div id="bar">몸 멀쩡함　·　허기 괜찮음　·　갈증 목마름　·　피로 조금</div>
+<script>
+  const B = { dawn: '새벽', morning: '오전', afternoon: '오후', evening: '저녁', night: '밤', late_night: '심야', black: '검은 화면' };
+  const box = document.getElementById('bands');
+  for (const [k, v] of Object.entries(B)) {
+    const b = document.createElement('button');
+    b.textContent = v; b.dataset.k = k;
+    b.onclick = () => {
+      document.body.classList.toggle('black', k === 'black');
+      if (k !== 'black') document.body.dataset.band = k;
+      document.getElementById('hud').textContent = `첫날 ${v} · 계곡`;
+      box.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    };
+    box.appendChild(b);
+  }
+  box.querySelector('[data-k="afternoon"]').classList.add('on');
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Avernia</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="hud"></div>
+<div id="app">
+  <div id="story"></div>
+  <div id="choices"></div>
+  <form id="freeRow" hidden>
+    <input id="free" autocomplete="off" placeholder="무엇을 할까…  (예: 물을 마신다)">
+  </form>
+</div>
+<div id="bar"></div>
+<!-- 순서: 도구 → 데이터 → 핵심 → 세계 시뮬레이션 → NPC → 사회 → 언어 → 플레이 → 이야기 → 화면 -->
+<script src="js/text.js"></script>
+<script src="js/core/rng.js"></script>
+<script src="js/core/bus.js"></script>
+<script src="js/core/time.js"></script>
+<script src="js/data/places.js"></script>
+<script src="js/data/items.js"></script>
+<script src="js/data/npcs.js"></script>
+<script src="js/data/lexicon.js"></script>
+<script src="js/data/factions.js"></script>
+<script src="js/sim/places.js"></script>
+<script src="js/sim/weather.js"></script>
+<script src="js/sim/regions.js"></script>
+<script src="js/sim/creatures.js"></script>
+<script src="js/sim/events.js"></script>
+<script src="js/sim/economy.js"></script>
+<script src="js/sim/factions.js"></script>
+<script src="js/body.js"></script>
+<script src="js/npc/npc.js"></script>
+<script src="js/npc/needs.js"></script>
+<script src="js/npc/goals.js"></script>
+<script src="js/npc/schedule.js"></script>
+<script src="js/npc/memory.js"></script>
+<script src="js/npc/behavior.js"></script>
+<script src="js/social/relationship.js"></script>
+<script src="js/social/knowledge.js"></script>
+<script src="js/social/rumor.js"></script>
+<script src="js/social/social.js"></script>
+<script src="js/lang/registry.js"></script>
+<script src="js/lang/persistence.js"></script>
+<script src="js/lang/knowledge.js"></script>
+<script src="js/lang/learning.js"></script>
+<script src="js/lang/parser.js"></script>
+<script src="js/lang/resolver.js"></script>
+<script src="js/lang/dialogue.js"></script>
+<script src="js/lang/ui.js"></script>
+<script src="js/lang/index.js"></script>
+<script src="js/play/combat.js"></script>
+<script src="js/play/magic.js"></script>
+<script src="js/play/narrative.js"></script>
+<script src="js/play/intent.js"></script>
+<script src="js/play/explore.js"></script>
+<script src="js/play/encounter.js"></script>
+<script src="js/core/world.js"></script>
+<script src="js/state.js"></script>
+<script src="js/world.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/debug/debug.js"></script>
+</body>
+</html>

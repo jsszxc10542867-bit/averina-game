@@ -1,0 +1,118 @@
+/* 아베르니아 스타일 — 디자인담당 관리. 새 줄 종류나 화면 요소가 생기면 클래스 이름만 알려 주세요. */
+
+/* 색 토큰. @property로 등록해서 시간대가 바뀔 때 색이 천천히 번진다 */
+@property --bg      { syntax: '<color>'; inherits: true; initial-value: #0e1411; }
+@property --fg      { syntax: '<color>'; inherits: true; initial-value: #d9dfd6; }
+@property --dim     { syntax: '<color>'; inherits: true; initial-value: #7d8a80; }
+@property --line    { syntax: '<color>'; inherits: true; initial-value: #2a382f; }
+@property --acc     { syntax: '<color>'; inherits: true; initial-value: #a9c9a4; }
+@property --err     { syntax: '<color>'; inherits: true; initial-value: #d98b8b; }
+@property --surface { syntax: '<color>'; inherits: true; initial-value: #16201a; }
+@property --vig     { syntax: '<number>'; inherits: true; initial-value: .3; }
+
+/* 기본값 = 오후 (첫날 오후 3시에 눈을 뜬다). 모든 글자 대비 4.5:1 이상 */
+body {
+  --bg: #0e1411; --fg: #d9dfd6; --dim: #7d8a80; --line: #2a382f;
+  --acc: #a9c9a4; --err: #d98b8b; --surface: #16201a; --vig: .3;
+}
+/* 시간대 (engine.js setHud가 body[data-band]를 붙인다) */
+body[data-band="dawn"]       { --bg: #111317; --fg: #d6d9de; --dim: #858b97; --line: #2e333c; --acc: #cdb6bd; --err: #e0979a; --surface: #181b21; --vig: .35; }
+body[data-band="morning"]    { --bg: #101814; --fg: #dde4da; --dim: #87958c; --line: #2e3e34; --acc: #b3d4ae; --err: #e0979a; --surface: #18241d; --vig: .2; }
+body[data-band="evening"]    { --bg: #15110d; --fg: #e2d9cc; --dim: #948775; --line: #3a2f23; --acc: #dbb47e; --err: #e09184; --surface: #1e1811; --vig: .42; }
+body[data-band="night"]      { --bg: #0a0d12; --fg: #c6cdd7; --dim: #78838f; --line: #232c39; --acc: #a3b9d3; --err: #d98f95; --surface: #121821; --vig: .55; }
+body[data-band="late_night"] { --bg: #060709; --fg: #b2b7be; --dim: #737a84; --line: #1e2228; --acc: #93a2b8; --err: #c98a90; --surface: #0e1014; --vig: .65; }
+/* 검은 화면 (시작 연출, 죽음, 되감기). 시간대보다 우선한다 */
+body.black { --bg: #000; --fg: #bfc6bd; --dim: #737b74; --line: #1a1d1b; --surface: #0b0d0c; --vig: 0; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  /* 명조 우선. 이 PC처럼 Noto Serif KR이 없으면 바탕으로 (고딕으로 떨어지지 않게) */
+  font: 17px/1.85 "Noto Serif KR", "Nanum Myeongjo", "Batang", "바탕", "AppleMyungjo", serif;
+  transition: --bg 2.6s ease, --fg 2.6s ease, --dim 2.6s ease, --line 2.6s ease, --acc 2.6s ease,
+              --err 2.6s ease, --surface 2.6s ease, --vig 2.6s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 가장자리 어둠. 밤일수록 짙어진다 */
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse 80% 70% at 50% 42%, transparent 55%, rgb(0 0 0 / var(--vig)) 100%);
+}
+::selection { background: color-mix(in srgb, var(--acc) 30%, transparent); }
+
+/* 위: 날과 시간대, 장소. 글이 밑으로 지나가도 겹쳐 보이지 않게 배경을 깐다 */
+#hud {
+  position: fixed; top: 0; left: 0; right: 0; padding: 12px 16px 18px;
+  font-size: 13px; letter-spacing: .12em; color: var(--dim);
+  background: linear-gradient(var(--bg) 55%, transparent);
+  pointer-events: none; z-index: 2;
+}
+#hud:empty { display: none; }
+#app { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; padding: 56px 20px 120px; min-height: 100vh; }
+/* 아래: 몸 상태 (숫자 대신 느낌). 검은 화면에서는 숨긴다 */
+#bar {
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 18px 16px 10px;
+  font-size: 12px; letter-spacing: .06em; color: var(--dim); text-align: center;
+  background: linear-gradient(transparent, var(--bg) 45%); pointer-events: none; z-index: 2;
+}
+#bar:empty, body.black #bar { display: none; }
+
+/* 글줄 */
+.line { margin: 0 0 10px; opacity: 0; transform: translateY(4px); transition: opacity .7s ease, transform .7s ease; }
+.line.in { opacity: 1; transform: none; }
+.line.gap { height: 14px; margin: 0; }
+.line.dim { color: var(--dim); font-size: 15px; }
+.line.center { text-align: center; }
+/* 지식: 되감기 전에 알아낸 것. 기억이 겹쳐 보이는 듯한 옅은 번짐 */
+.line.know { color: var(--acc); text-shadow: 0 0 14px color-mix(in srgb, var(--acc) 35%, transparent); }
+.line.death { text-align: center; color: var(--err); font-size: 30px; letter-spacing: .4em; padding-left: .4em; margin: 0 0 22px; transition-duration: 2.2s; }
+.line.sys { color: var(--dim); font-size: 14px; letter-spacing: .08em; }
+.line.note { color: var(--fg); font-size: 15px; padding-left: 4px; }
+.line.note.dim { color: var(--dim); }
+.line.stat { font-family: "D2Coding", "Consolas", "Malgun Gothic", monospace; font-size: 15px; margin: 0 0 2px; color: var(--acc); white-space: pre; text-align: center; }
+.line.stat.head { color: var(--fg); letter-spacing: .1em; }
+body.black #app { display: flex; flex-direction: column; justify-content: center; }
+body.black .line { font-size: 19px; }
+
+.more { text-align: center; color: var(--dim); animation: blink 1.6s infinite; margin-top: 18px; cursor: pointer; }
+@keyframes blink { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
+
+/* 선택지 */
+#choices { margin-top: 22px; opacity: 0; transition: opacity .5s ease; }
+#choices.in { opacity: 1; }
+.sep { height: 1px; background: var(--line); margin: 12px 0; }
+.choice {
+  display: flex; align-items: baseline; gap: 12px; width: 100%; min-height: 44px; text-align: left;
+  background: transparent; color: var(--fg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 10px 14px; margin: 0 0 8px; font: inherit; font-size: 16px; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.choice:hover:not(:disabled), .choice:focus-visible { border-color: var(--acc); background: var(--surface); outline: none; }
+.choice:disabled { opacity: .35; cursor: default; }
+.choice .num { color: var(--dim); font-size: 13px; min-width: 14px; }
+.choice .hint { color: var(--acc); font-size: 13px; margin-left: auto; }
+.choice.go { justify-content: center; margin-top: 10px; }
+
+/* 입력 */
+.nameRow input, #free {
+  width: 100%; background: transparent; color: var(--fg); font: inherit; font-size: 18px;
+  border: 0; border-bottom: 1px solid var(--dim); padding: 8px 2px; outline: none; text-align: center;
+}
+.nameRow input:focus { border-bottom-color: var(--acc); }
+#free { text-align: left; font-size: 15px; border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px; margin-top: 4px; color: var(--dim); }
+#free:focus { border-color: var(--acc); color: var(--fg); }
+#free::placeholder, .nameRow input::placeholder { color: var(--dim); opacity: .7; }
+#freeRow { margin-top: 10px; }
+.err { color: var(--err); font-size: 14px; text-align: center; min-height: 1.5em; margin: 8px 0 0; }
+
+@media (max-width: 480px) {
+  body { font-size: 16px; }
+  #app { padding: 52px 16px 100px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+  .line { transition: opacity .2s linear; transform: none; }
+  .more { animation: none; opacity: .7; }
+}
