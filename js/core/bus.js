@@ -12,6 +12,9 @@ const Bus = (() => {
     'RELATIONSHIP_CHANGED',
     'RUMOR_CREATED', 'RUMOR_SPREAD',
     'LOCATION_DISCOVERED', 'WORLD_EVENT_CREATED',
+    // 생활 (스토리 재설계): 쓰러짐, 일, 거처, 동행, 단서
+    'PLAYER_COLLAPSED', 'PLAYER_RESCUED', 'PLAYER_WORKED', 'PLAYER_SLEPT', 'LODGING_CHANGED',
+    'COMPANION_JOINED', 'COMPANION_LEFT', 'CLUE_FOUND', 'THREAD_OPENED',
   ];
   const handlers = {};
   const recent = []; // 디버그 화면용 최근 이벤트. 저장하지 않는다.

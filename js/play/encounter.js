@@ -13,8 +13,10 @@ const Encounter = (() => {
     if (search) return { id: 'ask_seen', vars: { target: S.W.npcs[search.target].identity.name } };
     if (r.hostility >= 50) return { id: 'go_away' };
     if (r.trust >= 40 && Player.bleeding(S.W)) return { id: 'are_you_ok' };
-    if (r.trust >= 40) return { id: 'thanks' };
-    return { id: 'challenge' };
+    if (r.trust >= 40) return { id: 'greet_warm' };
+    // 지키는 사람이거나 나를 크게 의심하면 따져 묻고, 아니면 말을 건다
+    if (n.identity.occupation === 'guard' || r.suspicion >= 60) return { id: 'challenge' };
+    return { id: 'greet' };
   }
 
   function speak(S, n, d) {
@@ -50,15 +52,12 @@ const Encounter = (() => {
     const { S, W, P, me } = ui;
     const n = W.npcs[id];
     ui.talker = id;
-    const prev = P.found.npcs[id];
-    const fromBefore = prev && prev.run != null && prev.run !== W.run; // 지난 회차에 본 얼굴
+    const first = !Memory.has(n, 'player', 'met');
     Social.meet(S, id);
-    P.found.npcs[id].run = W.run;
     const who = () => Narrative.who(S, n);
-    const lines = [id === 'lia' ? '그녀다.' : `${J(n.identity.desc, '이가')} 있다.`];
+    const lines = [id === 'lia' ? '그녀다.' : `${J(first ? n.identity.desc : who(), '이가')} 있다.`];
     const act = n.currentAction && ACTIVITY[n.currentAction.type];
     if (act) lines.push(act);
-    if (fromBefore) lines.push(K('……본 적 있는 얼굴이다. 이 사람은 나를 모른다.'));
     lines.push('', `${J(who(), '이가')} 나를 본다.`, ...speak(S, n, opening(S, n)), ...Narrative.describe(S, n));
     await ui.page(lines);
 
@@ -78,6 +77,7 @@ const Encounter = (() => {
       if (word) opts.push({ id: 'say', label: '들은 말을 되풀이해 본다' });
       if (search && P.knowledge.girl_hollow) opts.push({ id: 'point', label: '움푹한 곳이 있는 쪽을 가리킨다', hint: '안다' });
       if (gift) opts.push({ id: 'give', label: `${J(Player.label(gift, P), '을를')} 내민다` });
+      if (Companion.canAsk(S, n)) opts.push({ id: 'ask', label: '함께 가자고 손짓한다' });
       opts.push({ id: 'threat', label: '주먹을 쥐고 위협한다' });
       opts.push({ id: 'attack', label: weapon ? `${J(ITEM_DEFS[weapon].name, '을를')} 치켜들고 달려든다` : '달려든다' });
       opts.push({ id: 'leave', label: '물러선다', sep: true });
@@ -131,6 +131,8 @@ const Encounter = (() => {
           Social.help(S, 'player', id, 'gift', { trust: 6, suspicion: -6, affection: 2 });
           out = [`${J(Player.label(gift, P), '을를')} 내민다.`, `${J(w, '이가')} 머뭇거리다가 받아 든다.`, ...speak(S, n, { id: 'thanks' })];
         }
+      } else if (a === 'ask') {
+        out = ['나와 저편을 번갈아 가리키며, 함께 가자고 손짓한다.', ...Companion.ask(S, n)];
       } else if (a === 'threat') {
         Social.threaten(S, 'player', id);
         out = ['주먹을 쥐고 한 걸음 내딛는다.'];

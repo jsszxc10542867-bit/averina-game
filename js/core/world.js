@@ -1,11 +1,11 @@
 // 세계 상태 (통합 명세 3절)와 월드 틱 (5절). 세계 상태가 곧 진실이다: 모든 시스템은 여기를 바꾼다.
 const World = (() => {
-  // 씨앗이 늘 같다: 되감으면 같은 세계, 같은 하늘에서 다시 시작한다. 달라지는 것은 플레이어의 선택뿐이다.
+  // 씨앗이 늘 같다: 새로 시작하면 같은 세계, 같은 하늘이다. 달라지는 것은 플레이어의 선택뿐이다.
   const SEED = 20260929;
 
-  function create(run = 0) {
+  function create() {
     const W = {
-      v: 2, run, seq: 0, rng: SEED,
+      v: 2, seq: 0, rng: SEED,
       time: { t: Time.START },
       weather: Weather.create(SEED ^ 0x5bd1e995),
       player: Player.create(),

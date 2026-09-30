@@ -13,17 +13,19 @@ const SCHEDULES = {
     [18, 20, 'social', 'village_square'], [20, 22, 'rest', 'home'], [22, 24, 'sleep', 'home']],
   herbalist: [[0, 5, 'sleep', 'home'], [5, 6, 'pray', 'home'], [6, 11, 'gather', 'village_field'], [11, 12, 'eat', 'home'],
     [12, 17, 'work', 'home'], [17, 18, 'pray', 'home'], [18, 20, 'social', 'village_square'], [20, 24, 'sleep', 'home']],
-  hunter: [[0, 6, 'sleep', 'home'], [6, 8, 'eat', 'home'], [8, 17, 'work', 'village_field'],
-    [17, 20, 'social', 'village_square'], [20, 24, 'sleep', 'home']],
+  // 약초꾼 노파의 제자 [사용자 확정: 직업] — 일정은 NPC프로필_초안.md 1-4의 후보 (시간대는 [미확정 설정])
+  herbalist_apprentice: [[0, 5, 'sleep', 'home'], [5, 6, 'eat', 'home'], [6, 12, 'gather', 'village_field'],
+    [12, 13, 'eat', 'home'], [13, 17, 'work', 'home'], [17, 20, 'social', 'village_square'], [20, 22, 'rest', 'home'], [22, 24, 'sleep', 'home']],
   traveler: [[0, 6, 'sleep', 'home'], [6, 8, 'eat', 'home'], [8, 18, 'work', 'far_town'],
     [18, 21, 'social', 'far_town'], [21, 24, 'sleep', 'home']],
 };
 
 const NPC_DEFS = {
-  // 첫 번째 인간 NPC. 첫날 아침 사냥을 나섰다가, 둘째 날 새벽 숲 깊은 곳에서 무언가에게 습격당한다.
+  // 첫 번째 인간 NPC. 약초꾼 노파의 제자 [사용자 확정]. 첫날 숲 깊은 곳으로 약초를 캐러 나섰다가,
+  // 둘째 날 새벽 그곳에서 무언가에게 습격당한다 (첫날 행적은 [시스템 임시]).
   lia: {
     identity: { name: '리아', desc: '젊은 여자', race: 'human', origin: 'village', faction: 'lumeris',
-      occupation: 'hunter', education: 'basic', devout: false },
+      occupation: 'herbalist_apprentice', education: 'basic', devout: false },
     // [제안] 성격은 지금 장면의 행동(경계심, 자존심, 도움을 받으면 풀리는 태도)에 맞춰 잡았다
     personality: { bravery: 70, kindness: 55, honesty: 70, curiosity: 60, greed: 20, patience: 40, pride: 65, impulsiveness: 45, sociability: 45 },
     languages: { common_aver: { understanding: 100, speaking: 100, reading: 50, writing: 30 } },
@@ -33,9 +35,12 @@ const NPC_DEFS = {
     home: 'village_homes',
     start: { loc: 'deepwood', away: true },
     expectedHome: [2, 18], // 둘째 날 18시까지 돌아올 예정이었다 (넘기면 마을에서 실종으로 여긴다)
-    schedule: 'hunter',
-    // 첫날은 숲 깊은 곳에서 사냥하고 야영한다. 둘째 날 새벽에 돌아갈 생각이었다.
-    goals: [{ id: 'survive', type: 'survival', priority: 60 }, { id: 'return_home', type: 'personal', priority: 30, startAt: [2, 6] }],
+    schedule: 'herbalist_apprentice',
+    // 첫날은 숲 깊은 곳에서 약초를 캐고 야영한다. 둘째 날 새벽에 돌아갈 생각이었다.
+    // 목표 "스승의 병을 돌본다" [임시: 사용자 확인 중] — 스토리설계.md 결정 #1(디렉터 기록, 2026-09-30)과
+    // 스토리 담당 기록("리아의 욕망은 보류")이 엇갈린다. 병의 정도(#12)는 미정이라 노파는 아직 건강하다
+    goals: [{ id: 'survive', type: 'survival', priority: 60 }, { id: 'return_home', type: 'personal', priority: 30, startAt: [2, 6] },
+      { id: 'care_for_teacher', type: 'personal', priority: 50, target: 'herbalist' }],
     attitude: { stranger: { suspicion: 80 } },
     relations: {
       gatekeeper: { familiarity: 70, trust: 60, affection: 30, respect: 40 },

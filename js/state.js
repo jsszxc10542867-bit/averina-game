@@ -1,13 +1,12 @@
-// 되감아도 남는 것 (P)과 저장/불러오기.
-// P: 이름, 죽음과 되감기 횟수, 기억 조각, 알아낸 사실, 발견한 장소·사람·사건·소문, 언어, 마법에 대한 이해
-// W: 세계 상태 (core/world.js). 죽으면 처음 눈을 뜬 순간의 세계로 되돌아간다.
+// 플레이어가 아는 것 (P)과 저장/불러오기.
+// P: 이름, 쓰러진 횟수, 기억 조각, 알아낸 사실, 발견한 장소·사람·사건·소문, 단서, 언어, 마법에 대한 이해 — 모두 쌓인다
+// W: 세계 상태 (core/world.js). 둘 다 저장된다. (되감기는 폐기되었다: 스토리_재설계.md 0절)
 const Persist = (() => {
   function create() {
     return {
       v: 2,
       name: null,
-      deaths: 0,
-      rewinds: 0, // 되감은 횟수 (죽음 + 1장 끝에서 스스로 되감기)
+      collapses: 0, // 쓰러진 횟수 (엔딩 변수로 쓸 수 있다)
       memory: {
         identity: true, name: false, family: 'unknown',
         previousLocation: 'unknown', lastMoment: 'unknown', worldKnowledge: 0,
@@ -16,6 +15,8 @@ const Persist = (() => {
       found: Knowledge.create(),  // 발견한 장소·사람·사건·소문 (통합 명세 19·20절)
       lang: LangStore.create(),   // 언어 지식 (언어 시스템 35절)
       magic: { understanding: {} },
+      clues: {},                  // 모은 단서 { id: { t, from } } (play/clues.js)
+      threads: {},                // 열린 단서 갈래 { thread: t }
     };
   }
   return { create };
@@ -60,7 +61,7 @@ const Save = (() => {
   // 세계는 "구조"만 채운다. 소지품·관계·소문·흔적 같은 목록은 채우지 않는다
   // (먹어 없앤 빵이나 잊힌 소문이 되살아나면 안 된다)
   function fillWorld(W) {
-    const d = World.create(W.run || 0);
+    const d = World.create();
     shallow(W, d);
     ['time', 'weather', 'worldFlags', 'events', 'economy', 'politics'].forEach((k) => shallow(W[k], d[k]));
     shallow(W.player, d.player);
@@ -88,7 +89,7 @@ const Save = (() => {
     const P = fill(old.P, Persist.create());
     LangStore.migrate(P);
     P.v = 2;
-    return { P, W: World.create(P.rewinds || 0), migrated: true };
+    return { P, W: World.create(), migrated: true };
   }
 
   function clear() {

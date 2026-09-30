@@ -322,8 +322,9 @@ function listenLines(g) {
 function bagLines(S) {
   const me = S.W.player;
   const list = Object.entries(me.inv).filter(([, n]) => n > 0);
-  if (!list.length) return ['주머니를 뒤져 본다. 비어 있다.', '아무것도 없다.'];
+  if (!list.length && !me.money) return ['주머니를 뒤져 본다. 비어 있다.', '아무것도 없다.'];
   const lines = ['가진 것을 확인한다.', ...list.map(([k, n]) => `· ${Player.label(k, S.P)} ${n > 1 ? '× ' + n : ''}`.trim())];
+  if (me.money) lines.push(`· 동전 ${me.money}닢`);
   if (Player.weight(me) > Player.carryLimit(me)) lines.push('……짐이 무겁다. 걸을 때마다 어깨가 짓눌린다.');
   return lines;
 }

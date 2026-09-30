@@ -66,7 +66,7 @@
     let body = '';
     if (tab === 'world') {
       body = `<pre>${esc([
-        `시각 ${clock(W.time.t)} (${Time.KO[Time.band(W.time.t)]})  회차 ${W.run}  날씨 ${Weather.KO[W.weather.kind]} ${Weather.temp(W).toFixed(1)}℃`,
+        `시각 ${clock(W.time.t)} (${Time.KO[Time.band(W.time.t)]})  날씨 ${Weather.KO[W.weather.kind]} ${Weather.temp(W).toFixed(1)}℃`,
         `플레이어 ${W.player.loc}  HP ${W.player.hp}/${hpMax(W.player)}  ` + Object.entries(W.player.surv).filter(([, v]) => typeof v === 'number').map(([k, v]) => `${k} ${r0(v)}`).join(' '),
         `부상 ${JSON.stringify(W.player.surv.injuries.map((x) => x.kind))}  병 ${JSON.stringify(W.player.surv.illness.map((x) => x.kind))}`,
         `지역 ` + Object.entries(W.regions).map(([k, r]) => `${k}:${r.level} 위협${r0(r.threat)} 경계${r0(r.alert)}`).join(' | '),

@@ -26,6 +26,8 @@ const Player = (() => {
       feel: {}, cause: null, ateBerry: false, asleep: false,
       // [제안] 마법 재능은 숨긴 값이다. 플레이어에게 보여 주지 않는다
       magic: { mana: 5, maxMana: 5, talent: { light: 40, spirit: 55, life: 30 } },
+      // 생활: 돈(동전), 한 일의 경향(분), 거처, 함께 다니는 사람, 진 빚, 마지막으로 쓰러진 시각
+      money: 0, tendency: {}, lodging: null, companions: [], debts: [], lastCollapse: null,
     };
   }
 
@@ -47,10 +49,13 @@ const Player = (() => {
     }
   }
 
-  // cause: 이 상처로 죽으면 죽음 화면에 보일 까닭. by: 누가 (NPC id, 'beast' 등)
+  // 첫날 밤 보호 중인가 (RULES.protection): 그동안은 체력이 minHp 밑으로 내려가지 않는다
+  const sheltered = (S) => S.W.time.t < Time.at(RULES.protection.until[0], RULES.protection.until[1]);
+
+  // cause: 이 상처로 쓰러지면 보일 까닭. by: 누가 (NPC id, 'beast' 등)
   function hurt(S, n, cause, by) {
     const me = S.W.player;
-    me.hp = Math.max(0, me.hp - n);
+    me.hp = Math.max(sheltered(S) ? RULES.protection.minHp : 0, me.hp - n);
     if (cause) me.cause = cause;
     Bus.emit(S, 'PLAYER_HURT', { amount: n, cause: cause || null, by: by || null, hp: me.hp });
   }
@@ -106,7 +111,8 @@ const Player = (() => {
     s.hunger = clamp(s.hunger + dt * 0.025); // 시간당 +1.5
 
     // 피로
-    let f = opt.fight ? 0.15 : opt.move ? 0.08 : 0.03;
+    // opt.work = 일의 분당 피로 (play/work.js)
+    let f = opt.fight ? 0.15 : opt.move ? 0.08 : opt.work != null ? opt.work : 0.03;
     if (opt.move && weight(me) > carryLimit(me)) f *= 1.5;
     if (ill(W)) f *= 2;
     f *= 1 - (me.stats.vit - 3) * 0.05;
@@ -132,9 +138,12 @@ const Player = (() => {
 
     s.bleeding = bleeding(W) ? 1 : 0;
     // 쉬면 조금씩 낫는다 (목마르거나, 굶주리거나, 피를 흘리거나, 얼어붙어 있으면 낫지 않는다)
-    if ((opt.rest || opt.sleep) && s.thirst < 70 && s.hunger < 80 && !s.bleeding && s.cold < 80) {
+    // 거처에서 자면 잠의 질(opt.quality)만큼 낫는다 (RULES.sleep.healPer30)
+    // 정신을 잃은 동안(opt.unconscious)은 쉬는 게 아니다: 낫지 않는다 (깨어날 때의 체력은 쓰러짐 규칙이 정한다)
+    if ((opt.rest || opt.sleep) && !opt.unconscious && s.thirst < 70 && s.hunger < 80 && !s.bleeding && s.cold < 80) {
       a.rest += dt;
-      while (a.rest >= 30) { a.rest -= 30; heal(me, 1); }
+      const per = opt.sleep && opt.quality != null ? RULES.sleep.healPer30[opt.quality] : 1;
+      while (a.rest >= 30) { a.rest -= 30; heal(me, per); }
     }
     s.illness = s.illness.filter((x) => x.until > W.time.t);
 
@@ -207,7 +216,7 @@ const Player = (() => {
   }
 
   return {
-    create, use, hurt, heal, injure, bleeding, treat, ill, sicken,
+    create, use, hurt, heal, injure, bleeding, treat, ill, sicken, sheltered,
     weight, carryLimit, give, take, wear, label, update, hpFeeling, barWords, statusLines, unlockStatus, teleport,
   };
 })();

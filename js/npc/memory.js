@@ -7,11 +7,12 @@ const Memory = (() => {
     attacked_by: [-80, 90], betrayed_by: [-90, 95], lied_to: [-40, 55], paid_by: [20, 35], promise_kept: [35, 50],
     shared_danger: [30, 60], witnessed_death: [-70, 90], lost: [-85, 95], heard_name: [10, 40], taught: [15, 35],
     stolen_from: [-50, 70], strange: [0, 35],
+    rescued: [30, 75], worked_with: [15, 35], sheltered: [20, 45], travelled_with: [20, 45],
   };
   function add(S, n, o) {
     const [impact, importance] = KIND[o.type] || [0, 30];
     const m = {
-      id: `m${S.W.run}-${++S.W.seq}`,
+      id: `m-${++S.W.seq}`,
       type: o.type, subject: o.subject || null, event: o.event || null,
       emotionalImpact: o.impact != null ? o.impact : impact,
       importance: o.importance != null ? o.importance : importance,

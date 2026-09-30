@@ -330,6 +330,13 @@ const Scenes = (() => {
     if (places.length) lines.push('', '아는 곳', ...places);
     const people = peopleLines(ui);
     if (people.length) lines.push('', '만난 사람', ...people);
+    // 생활: 손에 익은 일, 잠자리, 함께 다니는 사람
+    const work = Work.tendencyLines(S);
+    if (work.length) lines.push('', '해 본 일', ...work);
+    if (me.lodging) lines.push('', { t: `잠자리 — ${RULES.lodgings[me.lodging.id].label}`, cls: 'note' });
+    const comp = Companion.list(ui.W).filter((n) => n.alive);
+    const nameOf = (n) => (P.found.npcs[n.id] && P.found.npcs[n.id].name) || n.identity.desc;
+    if (comp.length) lines.push({ t: `함께 다니는 사람 — ${comp.map(nameOf).join(', ')}`, cls: 'note' });
     await ui.page(lines);
     if (me.status.points > 0) {
       const { idx } = await ui.choose([{ label: '남은 힘을 싣는다' }, { label: '그만둔다' }]);
@@ -375,7 +382,7 @@ const Scenes = (() => {
     ui.know('village');
     await ui.page(lines);
     const { idx } = await ui.choose([{ label: '그녀를 따라간다' }, { label: '고개를 젓는다' }]);
-    if (idx === 0) return 'end:with';
+    if (idx === 0) return 'travel'; // 그녀와 함께 마을까지 걷는다 (arriveWith)
     // 그녀는 혼자 마을로 간다. 기다려 주지 않는다.
     G.physical.shock = Math.min(G.physical.shock, 15);
     Goals.add(G, { id: 'return_home', type: 'personal', priority: 90 }, W.time.t);
@@ -637,7 +644,90 @@ const Scenes = (() => {
     }
   }
 
-  return { beast, light, call, status, allocate, checkBody, girl, peopleLines };
+  // ---------- 마을에 닿다 (예전 1장의 끝. 되감기가 없어져 이제 마을 생활로 이어진다) ----------
+  // 마을이 어떤 모습인지는 그사이 세계에서 벌어진 일에 달려 있다 (소문, 리아의 생사와 위치, 문지기의 인상)
+  function villageLines(ui) {
+    const { S, W } = ui;
+    const lia = W.npcs.lia;
+    const gate = W.npcs.gatekeeper;
+    const onDuty = gate && gate.alive && Npc.at(W, 'gatekeeper', 'village_gate');
+    const heard = (type) => gate && Object.keys(gate.knowledge.rumors).some((id) => W.rumors[id] && W.rumors[id].type === type && (W.rumors[id].subject === 'player' || W.rumors[id].target === 'lia'));
+    const r = gate ? Rel.get(W, 'gatekeeper', 'player') : null;
+    const liaIn = lia.alive && Places.regionOf(lia.location.loc) === 'village';
+    if (!lia.alive && (heard('died') || W.regions.village.alert >= 60)) {
+      return ['울타리 앞에 사람이 여럿 서 있다. 모두 손에 무언가를 들고 있다.', '그중 하나가 나를 가리키며 무언가 외친다.',
+        ui.speak('「[[거기:15]] [[서:10]]! [[누구:20]]야!」', 'gatekeeper'), '', '알아들을 수 없다.', '……무언가가, 이미 벌어진 뒤다.'];
+    }
+    if (!onDuty) {
+      return ['울타리 앞에는 아무도 없다.', Time.dark(W.time.t) ? '집들 사이로 불빛 몇 개가 새어 나온다.' : '어디선가 개 짖는 소리가 들린다.'];
+    }
+    if (r && (r.hostility >= 30 || heard('threatened') || heard('attacked'))) {
+      return ['울타리 앞의 남자가 나를 보자마자 창끝을 겨눈다.', ui.speak('「[[가:30]]! [[오지:30]] [[마:30]]!」', 'gatekeeper'),
+        '', '알아들을 수 없다.', '……그런데 그 눈빛은, 나를 알고 있는 눈빛이다.'];
+    }
+    // 그녀가 먼저 마을에 닿아 있고 나를 믿는다면, 울타리의 소란을 듣고 나온다
+    if (liaIn && Rel.get(W, 'lia', 'player').trust >= 30) {
+      Npc.place(S, lia, 'village_gate');
+      Rel.change(S, 'gatekeeper', 'player', { suspicion: -30, trust: 10 }, 'vouched');
+      return ['울타리 앞의 남자가 나를 보더니, 뒤를 돌아보며 무언가 외친다.', '……집들 사이에서, 팔에 천을 감은 여자가 나온다.',
+        '리아다.', '그녀가 나를 보고, 아주 조금 웃는다.'];
+    }
+    return ['울타리 앞의 남자가 나를 보고 무언가 외친다.', '「……!」', '', '알아들을 수 없다.', '……대체, 이 세계는 뭐지?'];
+  }
+
+  // 혼자 숲의 가장자리에 닿았다
+  async function arrival(ui) {
+    const { S, W } = ui;
+    W.worldFlags.seen.arrival = true;
+    const lia = W.npcs.lia;
+    const liaIn = lia.alive && Places.regionOf(lia.location.loc) === 'village';
+    const lines = ['몇 시간을 걸었다.', '다리가 후들거리고, 목이 탄다.', '', '나무 사이가 성겨진다.', '숲이 끝나는 곳에 낮은 울타리와 지붕들이 보인다.',
+      '사람이 있다.', '', ...(lia.flags.met && !liaIn ? ['……그녀는 어디로 갔을까.', ''] : [])];
+    movePlayer(ui, 'village_gate');
+    lines.push(...villageLines(ui));
+    await ui.page(lines);
+    await ui.more();
+    return 'ok';
+  }
+
+  // 리아를 따라 마을까지 걷는다 (동행). 울타리에서 그녀가 나를 보증해 준다.
+  async function arriveWith(ui) {
+    const { S, W, me } = ui;
+    const G = W.npcs.lia;
+    W.worldFlags.seen.arrival = true;
+    Companion.join(S, 'lia');
+    const route = Places.route(me.loc, 'village_gate');
+    await ui.page(['그녀를 따라 걷는다.', '그녀는 몇 걸음마다 뒤를 돌아본다. 내가 따라오는지 확인하는 것처럼.']);
+    // 숲을 빠져나가는 동안 (둘 다 숲의 가장자리 쪽에 있는 것으로 둔다)
+    movePlayer(ui, 'edge');
+    Npc.place(S, G, 'edge');
+    const walk = ui.pass(route ? route.min - 20 : 200, { move: true });
+    movePlayer(ui, 'village_gate');
+    Npc.place(S, G, 'village_gate');
+    const lines = [...walk.filter((l) => l !== ''), '',
+      Time.band(W.time.t) === 'evening' ? '해가 기울 무렵, 나무 사이가 성겨진다.' : '나무 사이가 성겨진다.',
+      '숲이 끝나는 곳에 낮은 울타리와 지붕들이 보인다.', '굴뚝에서 연기가 오른다.', '',
+      '리아가 걸음을 멈추고 나를 돌아본다.', ui.speak('「[[어서:40]] [[와:40]]. [[여기가:60]] [[마을:20]]이야.」', 'lia'), '',
+      '그녀가 무슨 말을 했는지, 전부는 모른다.', '하지만 언젠가는 알게 될 것이다.'];
+    // 울타리를 지키는 사람에게 나를 보증한다
+    const gk = W.npcs.gatekeeper;
+    if (gk && gk.alive && Npc.at(W, 'gatekeeper', 'village_gate')) {
+      Rumor.exchange(S, G, gk);
+      Rel.change(S, 'gatekeeper', 'player', { suspicion: -30, trust: 10 }, 'vouched');
+      lines.push('', '울타리 앞의 남자가 리아를 보고 달려온다.', '둘이 빠르게 말을 주고받는다. 남자가 나를 한 번 훑어본다.', '……그리고 길을 비켜 준다.');
+    }
+    // 그녀는 집으로 간다. 함께 다니고 싶으면 다시 청해야 한다.
+    Companion.leave(S, 'lia', 'home');
+    Goals.add(G, { id: 'return_home', type: 'personal', priority: 90 }, W.time.t);
+    lines.push('', '리아가 집들 쪽을 가리키더니, 먼저 걸어 들어간다.');
+    Npc.startMove(S, G, G.location.home);
+    W.worldFlags.feed.length = 0;
+    await ui.page(lines);
+    await ui.more();
+    return 'ok';
+  }
+
+  return { beast, light, call, status, allocate, checkBody, girl, peopleLines, arrival, arriveWith, villageLines };
 })();
 
 if (typeof module !== 'undefined') module.exports = { Scenes };

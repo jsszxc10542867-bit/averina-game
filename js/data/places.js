@@ -20,6 +20,8 @@ const PLACE_DATA = {
   village_square: { region: 'village', name: '마을 광장', features: ['market', 'water'] },
   village_homes:  { region: 'village', name: '마을 집들', features: ['shelter', 'homes'] },
   village_field:  { region: 'village', name: '마을 밭', features: ['field'] },
+  // [임시] 교회의 구호 거처 (세계관 14절 "교회: 종교와 구호 활동") [결정 #10]
+  village_chapel: { region: 'village', name: '작은 예배당', features: ['shelter'] },
 
   // 먼 곳 (추상 시뮬레이션만 한다)
   road:     { region: 'road', name: '큰길', features: [] },
@@ -42,6 +44,7 @@ const PATHS = [
   ['hollow', 'edge', 200], ['hill', 'edge', 240], ['downstream', 'edge', 230],
   ['edge', 'village_gate', 20],
   ['village_gate', 'village_square', 5], ['village_square', 'village_homes', 5], ['village_square', 'village_field', 10],
+  ['village_square', 'village_chapel', 5],
   ['village_gate', 'road', 60], ['road', 'far_town', 720],
 ];
 

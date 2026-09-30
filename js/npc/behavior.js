@@ -14,6 +14,7 @@ const Behavior = (() => {
   const weaponOf = (n) => Object.keys(n.inventory).filter((k) => n.inventory[k] > 0 && ITEM_DEFS[k] && ITEM_DEFS[k].properties.weapon)
     .sort((a, b) => ITEM_DEFS[b].properties.weapon.dmg - ITEM_DEFS[a].properties.weapon.dmg)[0] || null;
   function useItem(n, k) { n.inventory[k]--; if (n.inventory[k] <= 0) delete n.inventory[k]; }
+  const HERB_JOBS = ['herbalist', 'herbalist_apprentice']; // 숲에서 약초를 캐는 사람
   const canTravel = (n) => n.physical.shock <= 20 && n.physical.health >= 15 && n.needs.fatigue < 95;
   const hasWater = (n, loc) => Places.has(loc, 'water') || (n.inventory.waterskin > 0);
 
@@ -101,7 +102,7 @@ const Behavior = (() => {
       },
     },
     gather: {
-      avail: (n, c) => !c.dark && ((c.sched && c.sched.act === 'gather' && c.loc === c.sched.at) || (c.region === 'forest' && n.identity.occupation === 'herbalist')),
+      avail: (n, c) => !c.dark && ((c.sched && c.sched.act === 'gather' && c.loc === c.sched.at) || (c.region === 'forest' && HERB_JOBS.includes(n.identity.occupation))),
       score: (n, c) => 50 - c.threat * 0.6 - c.W.regions[c.region].threat * 0.3 + (c.sched && c.sched.act === 'gather' ? 15 : 0),
       start: () => ({ min: 60 }),
       tick: (S, n, c, d) => {
@@ -111,7 +112,7 @@ const Behavior = (() => {
       },
     },
     hunt: {
-      avail: (n, c) => c.region === 'forest' && !c.dark && !!weaponOf(n) && !n.physical.injured && n.away,
+      avail: (n, c) => n.identity.occupation === 'hunter' && c.region === 'forest' && !c.dark && !!weaponOf(n) && !n.physical.injured && n.away,
       score: (n, c) => 45 + n.needs.hunger * 0.2 + n.personality.bravery * 0.1 - c.threat * 0.5,
       start: () => ({ min: 60 }),
       tick: (S, n, c, d) => { if (Rng.chance(c.W, d / 60 * 0.2)) n.inventory.dried_meat = (n.inventory.dried_meat || 0) + 1; },
@@ -245,8 +246,35 @@ const Behavior = (() => {
         return { min: 20 };
       },
     },
+    // 돌볼 사람(스승) 곁에서: 캐 온 약초를 건네고, 다치거나 아프면 돌본다 (목표 care_for_teacher)
+    tend: {
+      avail: (n, c) => {
+        const g = Goals.get(n, 'care_for_teacher');
+        const t = g && c.others.find((o) => o.id === g.target);
+        return !!t && ((n.inventory.herb || 0) > 1 || t.physical.injured || t.needs.health > 30);
+      },
+      score: (n, c) => {
+        const g = Goals.get(n, 'care_for_teacher');
+        const t = c.others.find((o) => o.id === g.target);
+        return g.priority * 0.6 + (t.physical.injured ? 30 : 0) - (n.flags.tendedAt != null && c.now - n.flags.tendedAt < 120 ? 50 : 0);
+      },
+      start: (S, n, c) => {
+        const t = c.others.find((o) => o.id === Goals.get(n, 'care_for_teacher').target);
+        const give = Math.max(0, (n.inventory.herb || 0) - 1);
+        if (give) { n.inventory.herb -= give; t.inventory.herb = (t.inventory.herb || 0) + give; }
+        if (t.physical.bleed > 0) { t.physical.bleed = 0; Social.help(S, n.id, t.id, 'treat'); }
+        n.flags.tendedAt = c.now;
+        Rel.change(S, n.id, t.id, { affection: 1 }, 'tend', true);
+        return { min: 20 };
+      },
+    },
+    // 함께 다니는 사람을 놓쳤을 때만 따라잡는다 (곁에 있을 때는 먹고 쉬는 등 제 할 일을 한다)
     follow: {
-      avail: (n, c) => !!n.flags.follow && canTravel(n),
+      avail: (n, c) => {
+        if (!n.flags.follow || !canTravel(n)) return false;
+        const tgt = n.flags.follow === 'player' ? c.W.player.loc : ((c.W.npcs[n.flags.follow] || {}).location || {}).loc;
+        return !!tgt && tgt !== c.loc;
+      },
       score: () => 70,
       start: (S, n, c) => {
         const tgt = n.flags.follow === 'player' ? S.W.player.loc : (S.W.npcs[n.flags.follow] || {}).location.loc;
@@ -277,6 +305,8 @@ const Behavior = (() => {
 
   // 걸어갈 곳과 그 점수
   function moveTarget(n, c) {
+    // 함께 다니는 동안에는 혼자 어디로 가지 않는다 (따라가기는 follow 행동이 맡는다)
+    if (n.flags.follow) return null;
     const out = [];
     const home = Goals.get(n, 'return_home');
     if (home && home.priority > 0 && c.loc !== c.home) {
@@ -372,6 +402,11 @@ const Behavior = (() => {
     // 다만 목숨이 걸리면 걸음을 멈추지 않고도 상처를 돌본다
     if (n.location.transit) {
       if (n.physical.health < 20 && A.heal.avail(n, c)) A.heal.start(S, n, c);
+      return;
+    }
+    // 쓰러진 사람을 돌보는 중: 깨어날 때까지 곁을 떠나지 않는다
+    if (n.flags.caring && now < n.flags.caring) {
+      if (!act || act.type !== 'wait') n.currentAction = { type: 'wait', start: now, until: n.flags.caring, data: {} };
       return;
     }
     const done = !act || now >= act.until;

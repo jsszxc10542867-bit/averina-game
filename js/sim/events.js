@@ -19,7 +19,7 @@ const WorldEvents = (() => {
     const { W } = S;
     const loc = o.loc || null;
     const ev = {
-      id: `e${W.run}-${++W.seq}`, type, t: W.time.t, loc,
+      id: `e-${++W.seq}`, type, t: W.time.t, loc,
       actors: o.actors || [], witnesses: o.witnesses || (loc ? witnessesAt(W, loc) : []),
       data: o.data || {}, distant: !!o.distant,
     };
@@ -45,6 +45,12 @@ const WorldEvents = (() => {
       Memory.add(S, lia, { type: 'attacked_by', subject: 'thornback' });
       Places.addTrace(W, 'deepwood', 'blood');
       Places.addTrace(W, 'deepwood', 'struggle');
+      // [제안 · 스토리 확인 필요] 습격 때 약초 주머니를 잃는다. 약초꾼의 제자가 약초를 지닌 채면 곧바로 스스로 피를 멎게 해서,
+      // 피 흘리는 채로 만나는 첫 장면이 성립하지 않는다. 흩어진 약초는 숲 깊은 곳에 흔적으로 남는다.
+      const lost = lia.inventory.herb || 0;
+      delete lia.inventory.herb;
+      delete lia.inventory.bandage;
+      if (lost) Places.addTrace(W, 'deepwood', 'scattered_herbs', { count: lost });
       record(S, 'beast_attack', { loc: 'deepwood', actors: ['thornback', 'lia'], witnesses: ['lia'],
         data: { subject: 'thornback', target: 'lia' } });
       Goals.add(lia, { id: 'return_home', type: 'personal', priority: 65 }, W.time.t);

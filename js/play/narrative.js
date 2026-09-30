@@ -21,7 +21,8 @@ const Narrative = (() => {
     if (!met(n)) return;
     const seen = !!S.P.found.npcs[n.id];
     if (Time.dark(W.time.t)) feed(S, '어둠 속에서 발소리가 다가온다.');
-    else feed(S, `${J(who(S, n, !seen), '이가')} 나무 사이에서 모습을 드러낸다.`);
+    else if (Places.regionOf(n.location.loc) === 'forest') feed(S, `${J(who(S, n, !seen), '이가')} 나무 사이에서 모습을 드러낸다.`);
+    else feed(S, `${J(who(S, n, !seen), '이가')} 저쪽에서 걸어온다.`);
   }
 
   function feedLeave(S, n) {
@@ -74,6 +75,8 @@ const Narrative = (() => {
     const r = Dialogue.process(S, { speakerId: a.id, listenerId: 'player', text });
     feed(S, r.displayText);
     Knowledge.rumor(S, told.rumor.id, told.level);
+    // 절반 넘게 알아들었다면 그 이야기는 단서가 된다
+    if (r.understanding >= 0.5) Clues.onRumor(S, told.rumor.type);
   }
 
   function feedHelpPlayer(S, n, item) {

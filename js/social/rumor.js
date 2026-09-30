@@ -7,17 +7,19 @@ const Rumor = (() => {
   const IMPORTANCE = {
     died: 95, attacked: 90, missing: 75, threatened: 70, helped: 60, beast_seen: 55, theft: 50,
     stranger_seen: 40, war_tension: 45, beasts_rising: 50, anomaly: 40, trade_boom: 35,
+    rescued: 55, worked: 30,
   };
 
   // 사건 종류 → 소문 종류
   const FROM_EVENT = {
     helped: 'helped', threatened: 'threatened', attacked: 'attacked', stranger_seen: 'stranger_seen',
     beast_attack: 'beast_seen', missing: 'missing', found_dead: 'died', death_witnessed: 'died', theft: 'theft',
+    rescued_player: 'rescued', player_worked: 'worked',
   };
 
   function create(S, holderIds, o) {
     const { W } = S;
-    const id = `r${W.run}-${++W.seq}`;
+    const id = `r-${++W.seq}`;
     const r = {
       id, type: o.type, subject: o.subject || null, target: o.target || null, place: o.place || null,
       event: o.event || null, origin: holderIds[0] || null, t: W.time.t,
@@ -52,13 +54,14 @@ const Rumor = (() => {
     if (h.level >= 1 && Rng.chance(W, distort)) level++;
     level = Math.min(2, level);
     listener.knowledge.rumors[r.id] = { level, from: teller.id, t: W.time.t };
-    apply(S, listener, r, level);
+    apply(S, listener, r, level, teller);
     Bus.emit(S, 'RUMOR_SPREAD', { rumorId: r.id, from: teller.id, to: listener.id, level });
     return { rumor: r, level };
   }
 
   // 소문을 들은 사람이 달라진다: 이방인에 대한 인상, 누군가를 잃은 슬픔, 숲이 위험하다는 두려움
-  function apply(S, n, r, level) {
+  // teller: 이야기를 들려준 사람. 겪은 당사자가 직접 한 말(증언)은, 그 사람을 믿는 만큼 무게가 실린다
+  function apply(S, n, r, level, teller) {
     const { W } = S;
     const strong = level >= 2 ? 1.5 : 1;
     if (r.subject === 'player') {
@@ -68,8 +71,16 @@ const Rumor = (() => {
         threatened: { suspicion: 15 * strong, fear: 8 * strong, hostility: 8 * strong + aff * 0.3 },
         attacked: { suspicion: 20 * strong, fear: 15 * strong, hostility: 20 * strong + aff * 0.5, resentment: aff * 0.4 },
         stranger_seen: { suspicion: level >= 2 ? 10 : 5 },
+        // 쓰러졌다가 구조된 이방인: 조금 덜 경계한다 / 일을 거든 이방인: 성실하다는 인상
+        rescued: { suspicion: -3 },
+        worked: { trust: 3, suspicion: -4, respect: 2 },
       }[r.type];
       if (d) Rel.change(S, n.id, 'player', d, 'rumor:' + r.type, true);
+      // 도움을 받은 당사자의 증언: "이 이방인이 나를 도왔다" (예: 리아가 스승에게)
+      if (r.type === 'helped' && teller && teller.id === r.target) {
+        const t = (Rel.peek(W, n.id, teller.id) || {}).trust || 0;
+        Rel.change(S, n.id, 'player', { trust: 10 + t * 0.25, suspicion: -10 }, 'testimony', true);
+      }
     }
     if (r.type === 'died' && r.target) {
       const aff = (Rel.peek(W, n.id, r.target) || {}).affection || 0;
