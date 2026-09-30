@@ -13,14 +13,19 @@ const Narrative = (() => {
     return first ? d : d.split(' ').pop();
   }
 
+  // 이번 회차에 아직 마주하지 않은 사람은 만남 장면이 직접 소개한다 (먼저 적으면 등장을 망친다)
+  const met = (n) => Memory.has(n, 'player', 'met');
+
   function feedArrive(S, n) {
     const { W } = S;
+    if (!met(n)) return;
     const seen = !!S.P.found.npcs[n.id];
     if (Time.dark(W.time.t)) feed(S, '어둠 속에서 발소리가 다가온다.');
     else feed(S, `${J(who(S, n, !seen), '이가')} 나무 사이에서 모습을 드러낸다.`);
   }
 
   function feedLeave(S, n) {
+    if (!met(n)) return;
     feed(S, Time.dark(S.W.time.t) ? '발소리가 멀어진다.' : `${J(who(S, n), '이가')} 자리를 뜬다.`);
   }
 
@@ -37,9 +42,9 @@ const Narrative = (() => {
   };
   function feedAction(S, n, type) {
     const { W } = S;
-    if (type === 'search') { searchCall(S, n); return; }
+    if (type === 'search') { searchCall(S, n); return; } // 부르는 소리는 보이지 않아도 들린다
     const f = ACT_LINE[type];
-    if (!f) return;
+    if (!f || !met(n)) return;
     const last = n.flags.narr;
     if (last && last.type === type && W.time.t - last.t < 60) return;
     n.flags.narr = { type, t: W.time.t };
