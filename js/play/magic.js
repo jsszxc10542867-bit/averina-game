@@ -1,7 +1,7 @@
 // 마법 (통합 명세 25절, 세계관 10·11절). 플레이어는 처음에 마법이 있다는 것조차 모른다. 목록을 보여 주지 않는다.
 // 쓸 수 있는가는 마력(mana)·이해도·숙련도·재능·지식·훈련으로 정해진다.
 // NPC: n.magic = { mana, maxMana, schools: { life: { understanding, proficiency, talent } } }
-// 플레이어: 이해(지식이라 되감아도 남는다) = P.magic.understanding, 마력과 재능(몸) = W.player.magic
+// 플레이어: 이해(지식) = P.magic.understanding, 마력과 재능(몸) = W.player.magic
 const Magic = (() => {
   const SCHOOLS = ['fire', 'water', 'wind', 'earth', 'light', 'dark', 'space', 'time', 'mind', 'life', 'summoning', 'gravity', 'creation'];
   // 기본 속성은 1, 고위 마법은 2~3 (세계관 10절)

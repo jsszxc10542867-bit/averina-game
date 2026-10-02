@@ -15,13 +15,17 @@ const PLACE_DATA = {
   // 플레이어는 들어갈 수 없는 숲 깊은 곳 (리아가 첫날 밤을 보낸 곳)
   deepwood:   { region: 'forest', name: '숲 깊은 곳', features: ['trees', 'dense', 'shelter'] },
 
-  // 마을 [제안] 스토리에서 이름과 구성을 정하면 바꾼다
-  village_gate:   { region: 'village', name: '마을 울타리', features: ['fence'] },
-  village_square: { region: 'village', name: '마을 광장', features: ['market', 'water'] },
-  village_homes:  { region: 'village', name: '마을 집들', features: ['shelter', 'homes'] },
-  village_field:  { region: 'village', name: '마을 밭', features: ['field'] },
+  // 마을 하르넨 [결정 D7] — 장소 구성은 시작마을.md 1-4절. 공식 시설 7종은 합쳤다 (여관+밥집, 대장간+잡화, 광장 시장, 작은 예배당, 길드 연락소)
+  village_gate:      { region: 'village', name: '마을 울타리', features: ['fence'] },
+  village_square:    { region: 'village', name: '마을 광장', features: ['market', 'water'] },
+  village_inn:       { region: 'village', name: '여관 겸 밥집', features: ['shelter', 'food'] },
+  village_herbhouse: { region: 'village', name: '약초집', features: ['shelter', 'herbs'] },     // 노파의 집 · 치료소 · 리아의 집 [D10]
+  village_homes:     { region: 'village', name: '마을 집들', features: ['shelter', 'homes'] },  // 다른 사람들이 사는 집
+  village_field:     { region: 'village', name: '마을 밭', features: ['field'] },
+  village_smithy:    { region: 'village', name: '대장간', features: ['forge'] },              // 대장간 겸 잡화 가게 (일하는 사람은 아직 없다)
   // [임시] 교회의 구호 거처 (세계관 14절 "교회: 종교와 구호 활동") [결정 #10]
-  village_chapel: { region: 'village', name: '작은 예배당', features: ['shelter'] },
+  village_chapel:    { region: 'village', name: '작은 예배당', features: ['shelter'] },
+  village_guild:     { region: 'village', name: '길드 연락소', features: [] },                // 처음에는 닫혀 있다 (worldFlags.guildOpen)
 
   // 먼 곳 (추상 시뮬레이션만 한다)
   road:     { region: 'road', name: '큰길', features: [] },
@@ -31,7 +35,7 @@ const PLACE_DATA = {
 // 지역. adj = 이웃 지역 (플레이어가 있는 지역의 이웃은 중간 정밀도로 계산한다)
 const REGION_DATA = {
   forest:  { name: '숲', adj: ['village'] },
-  village: { name: '마을', adj: ['forest', 'road'] },
+  village: { name: '하르넨', adj: ['forest', 'road'] }, // [결정 D7]
   road:    { name: '큰길', adj: ['village', 'far'] },
   far:     { name: '먼 곳', adj: ['road'] },
 };
@@ -45,6 +49,8 @@ const PATHS = [
   ['edge', 'village_gate', 20],
   ['village_gate', 'village_square', 5], ['village_square', 'village_homes', 5], ['village_square', 'village_field', 10],
   ['village_square', 'village_chapel', 5],
+  ['village_square', 'village_inn', 3], ['village_square', 'village_herbhouse', 5], ['village_square', 'village_smithy', 3],
+  ['village_square', 'village_guild', 5], ['village_homes', 'village_herbhouse', 3],
   ['village_gate', 'road', 60], ['road', 'far_town', 720],
 ];
 

@@ -1,6 +1,7 @@
 // 대사 표기 해석 (lexicon.js 머리말의 표기 규칙). [[단어:임계값|오역]] → 단어 ID와 임계값
 const LangParser = (() => {
-  const RE = /\[\[([^:\]|]+)(?::(\d+))?(?:\|([^\]]+))?\]\]/g;
+  // 단어 칸에는 대괄호로 묶인 부분이 들어갈 수 있다 (임시 이름 "NPC[문지기]" [D12])
+  const RE = /\[\[((?:[^:\]|\[]|\[[^\][]*\])+)(?::(\d+))?(?:\|([^\]]+))?\]\]/g;
 
   // {target} 같은 자리표시자를 채운다
   const fill = (str, vars) => (vars ? String(str).replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m)) : String(str));

@@ -3,6 +3,14 @@
 // 들리지 않는 부분(어미·조사)은 지운다. 짐작한 단어가 섞이면 끝에 "……?"가 붙는다.
 const LangResolver = (() => {
   const r2 = (n) => Math.round(n * 100) / 100;
+  // 낯선 소리의 앞뒤 표시 (화면이 따로 꾸밀 수 있게 parts로 나눈 뒤 지운다)
+  const OPEN = '\u0001', CLOSE = '\u0002';
+  // "「노칸르 사노테…… 온아?」" → [{ s: '「' }, { s: '노칸르', foreign: true }, ...]. 낯선 소리가 없으면 null
+  function split(display) {
+    if (!display.includes(OPEN)) return null;
+    return display.split(/(\u0001[^\u0002]*\u0002)/).filter(Boolean)
+      .map((s) => (s[0] === OPEN ? { s: s.slice(1, -1), foreign: true } : { s }));
+  }
 
   // 관계가 말투를 바꾼다 (통합 명세 17절): 호의적이면 천천히, 쉬운 말로, 되풀이하며 / 적대적이면 빠르게, 비꼬아서
   function manner(S, speakerId, listenerId) {
@@ -46,18 +54,21 @@ const LangResolver = (() => {
           const x = res[i++];
           if (x.state === 'known') return x.surface;
           if (x.state === 'guess') return x.alt || x.surface;
-          return LangRegistry.sound(x.wordId, x.surface);
+          return OPEN + LangRegistry.sound(x.wordId, x.surface) + CLOSE;
         })
         .replace(/ {2,}/g, ' ')
         .replace(/「 /, '「')
         .replace(/ 」/, '」');
       if (res.some((x) => x.state === 'guess')) display = display.replace(/[.!?…]*」\s*$/, '……?」');
     }
+    const parts = full ? null : split(display);
+    if (parts) display = display.replace(/[\u0001\u0002]/g, '');
     const pick = (st) => res.filter((x) => x.state === st).map((x) => x.wordId);
     return Object.assign(base, {
       understanding: r2((knownN + pick('guess').length * 0.5) / res.length),
       fullyUnderstood: full,
       displayText: display,
+      parts, // 화면용: 낯선 소리 조각 표시 (없으면 null). displayText와 글자는 같다
       recognizedWords: pick('known'),
       uncertainWords: pick('guess'),
       unknownWords: pick('unknown'),

@@ -8,6 +8,7 @@ const Memory = (() => {
     shared_danger: [30, 60], witnessed_death: [-70, 90], lost: [-85, 95], heard_name: [10, 40], taught: [15, 35],
     stolen_from: [-50, 70], strange: [0, 35],
     rescued: [30, 75], worked_with: [15, 35], sheltered: [20, 45], travelled_with: [20, 45],
+    asked_favor: [5, 30], // 플레이어가 부탁했다 (약재 부족의 by_ask)
   };
   function add(S, n, o) {
     const [impact, importance] = KIND[o.type] || [0, 30];

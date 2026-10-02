@@ -12,7 +12,7 @@ const Work = (() => {
       if (j.lodgingOnly) return false; // 잠자리 값으로만 하는 일 (lodging.js)
       if (j.at !== W.player.loc || h < j.hours[0] || h >= j.hours[1]) return false;
       const giver = W.npcs[j.giver];
-      if (!giver || !Npc.present(W, giver)) return false;
+      if (!giver || !Npc.present(W, giver) || Condition.stageOf(giver) === 'bedridden') return false; // 병상에 누운 사람은 일을 맡기지 않는다
       const r = Rel.get(W, j.giver, 'player');
       return r.trust >= j.minTrust && r.hostility < 30 && r.suspicion < 70;
     }).map(([id, job]) => ({ id, job }));
@@ -41,7 +41,7 @@ const Work = (() => {
     if (giver.flags.workedDay !== today) {
       giver.flags.workedDay = today;
       Memory.add(S, giver, { type: 'worked_with', subject: 'player', detail: id });
-      WorldEvents.record(S, 'player_worked', { loc: me.loc, actors: ['player', giver.id], witnesses: [giver.id],
+      WorldEvents.record(S, 'player_worked', { loc: me.loc, actors: ['player', giver.id], witnesses: [giver.id, 'player'],
         data: { subject: 'player', target: giver.id, job: id } });
     }
     // 일이 마을을 조금 바꾼다
@@ -52,7 +52,7 @@ const Work = (() => {
     if (id === 'herbs' && giver.inventory.herb > 0) { giver.inventory.herb--; giver.inventory.bandage = (giver.inventory.bandage || 0) + 1; }
     Bus.emit(S, 'PLAYER_WORKED', { job: id, giver: giver.id, paid });
     const thanks = Dialogue.process(S, { speakerId: giver.id, listenerId: 'player', dialogueId: 'thanks' });
-    lines.push(thanks.displayText);
+    lines.push(Lang.line(thanks, giver.id));
     return lines;
   }
 

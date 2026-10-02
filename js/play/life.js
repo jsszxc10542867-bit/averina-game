@@ -8,12 +8,14 @@ const Life = (() => {
     const opts = [];
     Work.available(S).forEach(({ id, job }) => opts.push({ label: job.label, hint: '품삯', life: true, run: () => Work.perform(S, id, pass) }));
     // 잠자리: 어느 길이 나은지 알려 주지 않는다 (값만 적는다)
+    // 값과 결과는 적지 않는다 (어느 쪽이 나은지 보이지 않게 — 스토리설계.md 단계 5 장면 문장 D)
     Lodging.offers(S).forEach(({ id, l }) => opts.push({
-      label: Lodging.label(id), hint: l.price ? `하룻밤 ${l.price}닢` : null, life: true,
+      label: Lodging.label(id), life: true,
       run: () => { const lines = Lodging.take(S, id, pass); return l.work ? lines : [...lines, ...pass(5)]; },
     }));
     if (Lodging.canSleep(S)) opts.push({ label: '잠을 잔다', kw: ['잔다', '잠', '자자', '눕'], life: true, run: () => Lodging.sleep(S, pass) });
     if (Shop.open(S)) opts.push({ label: '가게를 둘러본다', kw: ['가게', '사', '팔', '물건'], life: true, scene: 'shop' });
+    opts.push(...Incidents.options(S, pass)); // 마을 사건의 해결 방식 (약재 부족 등)
     Companion.list(W).filter((n) => Npc.present(W, n)).forEach((n) => {
       const who = Narrative.who(S, n);
       opts.push({ label: `${J(who, '과와')} 헤어진다`, life: true, run: () => {

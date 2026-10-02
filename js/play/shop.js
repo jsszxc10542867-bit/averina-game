@@ -2,7 +2,7 @@
 // 말이 통하지 않아도 물건과 동전은 통한다.
 const Shop = (() => {
   const J = (w, t) => w + Text.josa(w, t);
-  const SELLS = ['bread', 'dried_meat', 'bandage', 'waterskin']; // 플레이어에게 파는 것
+  const SELLS = ['bread', 'dried_meat', 'herb', 'bandage', 'waterskin']; // 플레이어에게 파는 것
   const BUYS = ['herb', 'dried_meat'];                           // 플레이어에게서 사는 것
 
   const open = (S) => Economy.open(S.W, S.W.player.loc) && S.W.player.loc !== 'far_town';
@@ -27,12 +27,18 @@ const Shop = (() => {
     const price = Math.ceil(Economy.priceOf(W, loc, item));
     const owner = W.npcs[Economy.merchantAt(W, loc)];
     const who = Narrative.who(S, owner);
-    if (me.money < price) return [`${J(Player.label(item, S.P), '을를')} 가리킨다.`, `${J(who, '이가')} 손가락 ${price}개를 펴 보인다. ……돈이 모자라다.`];
+    if (me.money < price) {
+      Incidents.notice(S, 'market', { item, noMoney: true });
+      return [`${J(Player.label(item, S.P), '을를')} 가리킨다.`, `${J(who, '이가')} 손가락 ${price}개를 펴 보인다. ……돈이 모자라다.`];
+    }
     me.money -= price;
     owner.money += price;
     m.stock[item]--;
     m.salesToday += price;
     Player.give(me, item);
+    LifeLog.money(S, -price, 'buy', { with: owner.id, item });
+    LifeLog.act(S, 'trade');
+    Incidents.notice(S, 'market', { item, bought: true });
     Rel.change(S, owner.id, 'player', { familiarity: 2 }, 'bought', true);
     return [`${J(Player.label(item, S.P), '을를')} 가리킨다.`, `${J(who, '이가')} 손가락 ${price}개를 펴 보인다. 동전을 건넨다.`];
   }
@@ -49,6 +55,8 @@ const Shop = (() => {
     me.money += price;
     Player.take(me, item);
     Economy.get(W, loc).stock[item] = (Economy.get(W, loc).stock[item] || 0) + 1;
+    LifeLog.money(S, price, 'sell', { with: owner.id, item });
+    LifeLog.act(S, 'trade');
     return [`${J(Player.label(item, S.P), '을를')} 내민다.`, `${J(who, '이가')} 이리저리 살펴보더니 동전 ${price}닢을 내준다.`];
   }
 
@@ -56,6 +64,7 @@ const Shop = (() => {
   async function run(ui) {
     const { S } = ui;
     let out = ['가게 앞에 선다. 천막 아래에 물건이 늘어서 있다.'];
+    Incidents.notice(S, 'market', { item: 'herb', browse: true }); // 약초 값과 재고가 눈에 들어온다
     while (open(S)) {
       await ui.page([...out, '', `주머니에는 동전 ${S.W.player.money}닢이 있다.`]);
       const w = wares(S), o = offers(S);

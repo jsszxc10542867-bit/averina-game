@@ -1,5 +1,5 @@
 // 화면과 게임 흐름: 시작 연출 → 기억 → 이름 → 숲 자유 탐색.
-// 게임 상태는 S = { P, W } 하나다. P는 되감아도 남고, W(세계)는 되감으면 처음으로 돌아간다.
+// 게임 상태는 S = { P, W } 하나다. P는 플레이어가 아는 것, W는 세계다. 둘 다 계속 쌓이고 함께 저장된다.
 (() => {
   'use strict';
   const $ = (s) => document.querySelector(s);
@@ -9,6 +9,7 @@
   const S = { P: Persist.create(), W: World.create(0) };
   const DIE = { die: true }; // 장면 도중 개발용 강제 죽음
   let skip = false, wake = null, cancelChoice = null;
+  let resting = null; // 숲·마을에서 다음 행동을 고르는 중이면 { opts } (장면 한가운데가 아니다)
 
   const fmt = (s) => Text.fmt(s, { 이름: S.P.name });
   const me = () => S.W.player;
@@ -22,10 +23,21 @@
     });
   }
 
-  function addLine(text, cls) {
+  // who: 말하는 NPC의 id (대사 줄에만). 화면이 이름표를 붙인다 (디자인_가이드.md 9절 요청 7)
+  // parts: 낯선 소리 조각 — <span class="foreign">으로 감싼다. 글자(textContent)는 text와 같다
+  function addLine(text, cls, who, parts) {
     const p = document.createElement('p');
     p.className = 'line' + (text === '' ? ' gap' : '') + (cls ? ' ' + cls : '');
-    p.textContent = fmt(text);
+    if (who) p.dataset.who = who;
+    if (parts) {
+      parts.forEach((x) => {
+        if (!x.foreign) { p.appendChild(document.createTextNode(fmt(x.s))); return; }
+        const sp = document.createElement('span');
+        sp.className = 'foreign';
+        sp.textContent = x.s;
+        p.appendChild(sp);
+      });
+    } else p.textContent = fmt(text);
     story.appendChild(p);
     void p.offsetWidth; // 강제 리플로우: 다음 줄에서 클래스를 붙여도 전환 효과가 난다
     p.classList.add('in');
@@ -44,7 +56,7 @@
     try {
       for (let i = 0; i < lines.length; i++) {
         const o = typeof lines[i] === 'string' ? { t: lines[i] } : lines[i];
-        addLine(o.t, o.cls || cls);
+        addLine(o.t, o.cls || cls, o.who, o.parts);
         if (!skip && o.t !== '' && i < lines.length - 1) await wait(o.pause || pace);
       }
     } finally {
@@ -81,18 +93,24 @@
     window.scrollTo(0, 0);
   }
 
-  // 선택지를 띄우고 고른 결과를 반환한다. { idx } | { text } | { die } | { refresh }
+  // 선택지를 띄우고 고른 결과를 반환한다. { idx } | { text } | { die } | { refresh } | { reload }
+  // 고른 버튼에는 .picked가 붙고, 잠깐(PICK_MS) 보인 뒤에 진행한다 (디자인_가이드.md 9절 요청 2)
+  const PICK_MS = 250;
   function choose(options, { free = false } = {}) {
     return new Promise((res) => {
       choicesEl.innerHTML = '';
       const armAt = performance.now() + 300;
+      const buttons = [];
+      let done = false;
       const finish = (v) => {
+        if (done) return;
+        done = true;
         document.removeEventListener('keydown', onKey);
         freeRow.onsubmit = null;
         cancelChoice = null;
-        choicesEl.innerHTML = '';
-        freeRow.hidden = true;
-        res(v);
+        const end = () => { choicesEl.innerHTML = ''; freeRow.hidden = true; res(v); };
+        const b = v.idx != null ? buttons[v.idx] : null;
+        if (b) { b.classList.add('picked'); setTimeout(end, PICK_MS); } else end();
       };
       options.forEach((o, i) => {
         if (o.sep) { const s = document.createElement('div'); s.className = 'sep'; choicesEl.appendChild(s); }
@@ -104,6 +122,7 @@
         b.append(n, l);
         if (o.hint) { const h = document.createElement('span'); h.className = 'hint'; h.textContent = '· ' + o.hint; b.append(h); }
         b.onclick = () => { if (performance.now() >= armAt) finish({ idx: i }); };
+        buttons.push(b);
         choicesEl.appendChild(b);
       });
       choicesEl.classList.remove('in');
@@ -220,7 +239,7 @@
 
   async function memoryScene() {
     const P = S.P;
-    await say(['……여기가 어디지?', '나는……', '누구지?'], { pace: 900 });
+    await say(['……여기가 어디지?', '나는……', '……어떻게 여기에 왔지?'], { pace: 900 });
     const used = new Set();
     const menu = [
       { id: 'name', label: '내 이름을 떠올린다.' },
@@ -285,7 +304,7 @@
     if (r.rescuer) {
       const w = Narrative.who(S, r.rescuer, !met(r.rescuer));
       const hi = Dialogue.process(S, { speakerId: r.rescuer.id, listenerId: 'player', dialogueId: 'are_you_ok' });
-      lines.push('누군가 나를 흔드는 느낌에 눈을 뜬다.', `${w}${Text.josa(w, '이가')} 곁에 앉아 있다.`, '상처에 무언가가 감겨 있다.', hi.displayText);
+      lines.push('누군가 나를 흔드는 느낌에 눈을 뜬다.', `${w}${Text.josa(w, '이가')} 곁에 앉아 있다.`, '상처에 무언가가 감겨 있다.', Lang.line(hi, r.rescuer.id));
       if (hi.tone && !hi.fullyUnderstood) lines.push(hi.tone);
     } else {
       lines.push('눈을 뜬다.', '얼마나 누워 있었는지 모르겠다.', Time.dark(S.W.time.t) ? '주위가 캄캄하다.' : '빛의 기울기가 달라져 있다.');
@@ -331,12 +350,15 @@
     choose: (opts) => sceneChoose(opts),
     more: () => more(),
     pass: (min, opt) => passTime(min, opt),
-    speak(str, by) { return Lang.speak(S, str, by || ui.talker); },
+    lose: () => Collapse.lose(S), // 정신을 잃었다가 새벽 직전 낯선 자리에서 깨어난다 (밤의 목소리)
+    // 대사 줄 { t, cls: 'speech', who } — 말하는 사람은 by, 없으면 지금 마주한 사람
+    speak(str, by) { const who = by || ui.talker; return Lang.line(Dialogue.process(S, { speakerId: who, listenerId: 'player', text: str }), who); },
     // 새 단어의 뜻을 알아내면 이해도가 오른다. 이미 알던 단어면 false.
     learn: (word, o) => Lang.learn(S, word, o),
     guess: (word) => Lang.guess(S, word),
     knows: (word) => Lang.knows(S, word),
-    know(id) { S.P.knowledge[id] = true; Explore.onFact(S, id); Clues.onFact(S, id); },
+    // 알아낸 사실은 처음 알아낸 시각을 남긴다 (기록 화면이 날짜별로 묶는다. 디자인_가이드.md 9절 요청 6)
+    know(id) { if (!S.P.knowledge[id]) S.P.knowledge[id] = S.W.time.t; Explore.onFact(S, id); Clues.onFact(S, id); },
     use(k) { Player.use(S, k); },
     chance: (p) => Rng.chance(S.W, p),
     pick: (a) => Rng.pick(S.W, a),
@@ -473,7 +495,6 @@
   }
 
   const liaWounded = () => S.W.events.scheduled.some((e) => e.type === 'lia_wounded' && e.done);
-  const liaAtHollow = () => Npc.at(S.W, 'lia', 'hollow');
 
   // 둘째 날, 그녀가 있는 곳으로 가는 길
   function girlExit() {
@@ -495,19 +516,24 @@
     L.actions.forEach((a) => opts.push({ label: a.label, kw: a.kw, run: () => doAction(a) }));
     opts.push(...Life.options(S, passTime)); // 일, 잠자리, 잠, 가게, 동행과 헤어지기
     // 이미 아는 사람이 곁에 있으면 내가 다가갈 수 있다
-    Npc.here(S.W, m.loc).filter((n) => !n.location.hidden && Memory.has(n, 'player', 'met') && !(n.id === 'lia' && m.loc === 'hollow'))
-      .forEach((n) => opts.push({ label: `${Narrative.who(S, n)}에게 다가간다`, kw: [Narrative.who(S, n)], scene: 'meet:' + n.id }));
+    // 부르는 말이 겹치면("남자"와 "남자") 겉모습 전체로 부른다 ("창을 든 남자", "앞치마를 두른 남자")
+    const near = Npc.here(S.W, m.loc).filter((n) => !n.location.hidden && Memory.has(n, 'player', 'met') && !(n.id === 'lia' && m.loc === 'hollow'));
+    const short = near.map((n) => Narrative.who(S, n));
+    near.forEach((n, i) => {
+      const w = short.indexOf(short[i]) !== short.lastIndexOf(short[i]) ? Narrative.who(S, n, true) : short[i];
+      opts.push({ label: `${w}에게 다가간다`, kw: [w], scene: 'meet:' + n.id });
+    });
     const exits = L.exits.filter((e) => !e.show || e.show(g));
     const ge = girlExit();
     if (ge) exits.push(ge);
     Explore.seeExits(S, exits);
     exits.forEach((e, i) => {
       const h = typeof e.hint === 'string' ? e.hint : e.hint && P.knowledge[e.hint[0]] ? e.hint[1] : null;
-      opts.push({ label: e.label, hint: h, kw: e.kw, sep: i === 0, run: () => doMove(e) });
+      opts.push({ label: e.label, hint: h, kw: e.kw, sep: i === 0, to: e.to, min: e.min, run: () => doMove(e) });
     });
     const G = GLOBAL_ACTIONS;
     opts.push({ label: G.listen.label, kw: G.listen.kw, sep: true,
-      run: () => [...listenLines(ctx()), ...passTime(G.listen.min)] });
+      run: () => { LifeLog.act(S, 'explore', { min: G.listen.min }); return [...listenLines(ctx()), ...passTime(G.listen.min)]; } });
     opts.push({ label: G.bag.label, kw: G.bag.kw, run: () => bagLines(S) });
     if (m.inv.berry) opts.push({ label: '붉은 열매를 먹는다', kw: ['먹', '열매'], hint: P.knowledge.berry_poison ? '독이다' : null, run: eatBerry });
     if (m.inv.herb && Player.bleeding(S.W) && P.knowledge.herb_heals) opts.push({ label: '쓴 풀을 짓이겨 상처에 댄다', kw: ['상처', '풀'], hint: '안다', run: treatSelf });
@@ -525,34 +551,20 @@
         ...passTime(Time.untilDawn(S.W.time.t), { rest: true }),
       ] });
     } else {
-      opts.push({ label: '잠시 쉰다', kw: G.rest.kw, run: () => [
-        '나무에 등을 기대고 잠시 숨을 고른다.', '심장이 천천히 가라앉는다.', ...passTime(30, { rest: true }),
-      ] });
+      opts.push({ label: '잠시 쉰다', kw: G.rest.kw, run: () => {
+        LifeLog.act(S, 'rest', { min: 30 });
+        return ['나무에 등을 기대고 잠시 숨을 고른다.', '심장이 천천히 가라앉는다.', ...passTime(30, { rest: true })];
+      } });
     }
     return opts;
   }
 
-  // 지금 벌어져야 할 장면이 있으면 그 이름을 돌려준다
-  function nextScene() {
-    const W = S.W, m = me();
-    const pend = flags().pending;
-    const i = pend.findIndex((p) => !p.startsWith('magic'));
-    if (i >= 0) return pend.splice(i, 1)[0];
-    if (m.loc === 'hollow' && liaAtHollow()) return 'girl';
-    if (m.loc === 'edge' && !flags().seen.arrival) return 'arrival';
-    // 누군가 곁에 와 있다: 처음 보는 사람, 누군가를 찾는 사람, 나를 적대하는 사람은 먼저 다가온다.
-    // 이미 아는 사람에게는 내가 다가간다 (선택지)
-    const other = Npc.here(W, m.loc).find((n) => !n.location.hidden && !(n.id === 'lia' && m.loc === 'hollow')
-      && (!Memory.has(n, 'player', 'met') || Goals.get(n, 'search') || Rel.get(W, n.id, 'player').hostility >= 50)
-      && !(n.flags.metAt != null && W.time.t - n.flags.metAt < 60));
-    if (other) return 'meet:' + other.id;
-    if (Creatures.engages(S)) return 'beast';
-    if (!flags().seen.light && Time.band(W.time.t) === 'evening' && ['clearing', 'deep', 'stream', 'downstream'].includes(m.loc)) return 'light';
-    return null;
-  }
+  // 지금 벌어져야 할 장면: 우선순위 표(play/order.js)의 위에서부터 하나
+  const nextScene = () => SceneOrder.next(S);
 
   async function runScene(sc) {
     if (sc.startsWith('meet:')) return Encounter.run(ui, sc.slice(5));
+    if (sc.startsWith('incident:')) return Incidents.runScene(ui, sc);
     return Scenes[sc](ui);
   }
 
@@ -572,6 +584,19 @@
         return 'die';
       }
       const sc = nextScene();
+      // 둘째 날 아침: 바람에 피 냄새가 실려 온다 (표의 마지막 줄)
+      if (sc === 'teaser') {
+        flags().seen.teaser = true;
+        await say(['', '바람에 실려 무언가가 코끝을 스친다.', '……피 냄새다.'], { pace: 1200 });
+        const { idx } = await choose([{ label: '냄새를 따라간다' }, { label: '모른 척한다' }]);
+        if (idx === 0) {
+          moveTo('hollow');
+          carry = ['냄새를 따라 걷는다. 비릿한 냄새가 점점 짙어진다.', ...passTime(20, { move: true })];
+          continue;
+        }
+        carry = ['냄새가 나는 쪽에서 등을 돌린다.', '……신경 쓰이지 않는다면 거짓말이다.'];
+        continue;
+      }
       if (sc) {
         if (carry.length) await more();
         let res;
@@ -589,24 +614,12 @@
         continue;
       }
 
-      // 둘째 날 아침: 바람에 피 냄새가 실려 온다
-      const lia = S.W.npcs.lia;
-      if (liaAtHollow() && flags().day2Acts >= 3 && !flags().seen.teaser && !lia.flags.met) {
-        flags().seen.teaser = true;
-        await say(['', '바람에 실려 무언가가 코끝을 스친다.', '……피 냄새다.'], { pace: 1200 });
-        const { idx } = await choose([{ label: '냄새를 따라간다' }, { label: '모른 척한다' }]);
-        if (idx === 0) {
-          moveTo('hollow');
-          carry = ['냄새를 따라 걷는다. 비릿한 냄새가 점점 짙어진다.', ...passTime(20, { move: true })];
-          continue;
-        }
-        carry = ['냄새가 나는 쪽에서 등을 돌린다.', '……신경 쓰이지 않는다면 거짓말이다.'];
-        continue;
-      }
-
       Save.write(S);
       const opts = buildOptions();
+      resting = { opts }; // 장면 밖에서 선택을 기다린다: 저장·불러오기·지도 이동이 안전한 때
       const pick = await choose(opts, { free: true });
+      resting = null;
+      if (pick.reload) return 'reload';
       if (pick.die) return 'die';
       if (pick.refresh) { carry = placeLines(); continue; }
       let o = pick.idx != null ? opts[pick.idx] : null;
@@ -627,24 +640,32 @@
   }
 
   // ---------- 흐름 ----------
-  async function titleMenu() {
-    const s = Save.read();
+  // title: 시작 화면(UITitle)이 고른 것 — 'continue' | 'new' | { slot } | null (시작 화면이 없으면 여기서 묻는다)
+  async function titleMenu(title) {
+    const slot = title && title.slot != null ? title.slot : null;
+    const s = Save.read(slot);
     if (!s) return false;
-    document.body.classList.add('black');
-    clearPage();
-    await say([{ t: '……이전의 기억이 남아 있다.', cls: 'center' }]);
-    const { idx } = await choose([{ label: '이어서 한다' }, { label: '처음부터 한다', hint: '모든 기억을 지운다' }]);
-    document.body.classList.remove('black');
-    if (idx === 1) { Save.clear(); return false; }
+    let fresh = title === 'new';
+    if (!title) {
+      document.body.classList.add('black');
+      clearPage();
+      await say([{ t: '……이전의 기억이 남아 있다.', cls: 'center' }]);
+      const { idx } = await choose([{ label: '이어서 한다' }, { label: '처음부터 한다', hint: '모든 기억을 지운다' }]);
+      document.body.classList.remove('black');
+      fresh = idx === 1;
+    }
+    if (fresh) { Save.clear(); return false; }
     S.P = s.P;
     S.W = s.W;
     // 예전 저장 파일은 세계를 이어 붙일 수 없어서, 이름과 기억만 가지고 숲에서 새로 시작한다
     return s.migrated ? 'fresh' : true;
   }
 
-  // 되감기는 없다 (스토리_재설계.md 0절). 쓰러져도 세계는 이어진다.
+  // 쓰러져도 세계는 이어진다 (스토리_재설계.md 0절).
   async function main() {
-    const resume = await titleMenu();
+    // 시작 화면 (디자인담당 js/ui). 없으면 바로 시작한다
+    const title = await (window.UITitle ? window.UITitle({ hasSave: !!Save.read(), slots: Save.list() }) : null);
+    const resume = await titleMenu(title);
     if (resume === 'fresh') await wakeAgain();
     else if (resume !== true) await intro();
     while (true) {
@@ -652,6 +673,42 @@
       if (res === 'die') await (Player.sheltered(S) ? shaken() : collapse());
     }
   }
+
+  // ---------- 화면(js/ui)이 쓰는 공식 연결점 (디자인_가이드.md 9절) ----------
+  // 화면은 S를 읽기만 한다. 바꾸는 일은 아래 함수를 거친다: 저장·불러오기·지도 이동은
+  // 장면 밖에서 다음 행동을 고르는 동안(resting)에만 된다. 그 밖에는 false를 돌려준다.
+  const walkWord = (min) => (min <= 10 ? '바로 옆이다' : min <= 30 ? '조금 걸어야 한다' : '한참 걸어야 한다');
+  window.Avernia = {
+    state: () => S,
+    canSave: () => !!resting,
+    save(slot) {
+      if (!resting || slot == null || slot === 'auto') return false;
+      return Save.write(S, slot);
+    },
+    // 저장한 칸에서 이어 한다 (지금 하던 것은 마지막 자동 저장에 남아 있다)
+    load(slot) {
+      if (!resting || !cancelChoice) return false;
+      const s = Save.read(slot);
+      if (!s || s.migrated) return false;
+      S.P = s.P;
+      S.W = s.W;
+      cancelChoice({ reload: true });
+      return true;
+    },
+    // 지금 갈 수 있는 곳: 선택지에 있는 길과 같다 (막힘·밤의 습격·동행은 고른 뒤에 선택지와 똑같이 판정된다)
+    routes() {
+      if (!resting) return [];
+      return resting.opts.filter((o) => o.to).map((o) => ({ to: o.to, label: fmt(o.label), hint: o.hint || null,
+        far: walkWord(o.min || 0), dark: Time.dark(S.W.time.t) }));
+    },
+    go(to) {
+      if (!resting || !cancelChoice) return false;
+      const idx = resting.opts.findIndex((o) => o.to === to);
+      if (idx < 0) return false;
+      cancelChoice({ idx });
+      return true;
+    },
+  };
 
   // 개발용: 콘솔에서 __dev.die() 로 쓰러짐을 시험한다. 디버그 화면(debug.js)도 이것을 쓴다.
   window.__dev = {
@@ -663,5 +720,7 @@
     refresh() { setHud(); if (cancelChoice) cancelChoice({ refresh: true }); },
   };
 
-  main();
+  // 뒤에 오는 화면 스크립트(js/ui: 시작 화면 UITitle 등)까지 다 읽은 뒤에 시작한다
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', main, { once: true });
+  else main();
 })();

@@ -1,5 +1,5 @@
 // 이벤트 버스: 시스템끼리 서로를 직접 부르지 않고 "무슨 일이 있었다"를 알린다.
-// 처리기는 (S, e)를 받는다. S = { P, W } (P: 되감아도 남는 것, W: 세계 상태)
+// 처리기는 (S, e)를 받는다. S = { P, W } (P: 플레이어가 아는 것, W: 세계 상태)
 const Bus = (() => {
   // 쓸 수 있는 이벤트 이름. 목록에 없는 이름은 오타로 보고 멈춘다.
   // PLAYER_ATTACKED = 플레이어가 누군가를 공격했다 / NPC_ATTACKED = NPC가 공격을 받았다
@@ -15,6 +15,8 @@ const Bus = (() => {
     // 생활 (스토리 재설계): 쓰러짐, 일, 거처, 동행, 단서
     'PLAYER_COLLAPSED', 'PLAYER_RESCUED', 'PLAYER_WORKED', 'PLAYER_SLEPT', 'LODGING_CHANGED',
     'COMPANION_JOINED', 'COMPANION_LEFT', 'CLUE_FOUND', 'THREAD_OPENED',
+    // 공통 사건 상태 (sim/incidents.js)
+    'INCIDENT_CHANGED', 'INCIDENT_DISCOVERED',
   ];
   const handlers = {};
   const recent = []; // 디버그 화면용 최근 이벤트. 저장하지 않는다.

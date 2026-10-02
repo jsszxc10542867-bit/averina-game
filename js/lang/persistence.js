@@ -1,4 +1,4 @@
-// 언어 저장 데이터 (언어 시스템 35절). 플레이어의 언어 지식은 되감아도 남는다 (P.lang).
+// 언어 저장 데이터 (언어 시스템 35절). 플레이어의 언어 지식 (P.lang).
 const LangStore = (() => {
   const blankSkill = () => ({ understanding: 0, speaking: 0, reading: 0, writing: 0 });
 

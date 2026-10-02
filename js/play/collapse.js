@@ -41,7 +41,7 @@ const Collapse = (() => {
       Memory.add(S, n, { type: 'rescued', subject: 'player', detail: cause || null });
       Rel.change(S, n.id, 'player', { familiarity: 10, affection: 3 }, 'rescued', true);
       me.debts.push({ npcId: n.id, kind: 'rescue', t: W.time.t, repaid: false });
-      WorldEvents.record(S, 'rescued_player', { loc, actors: [n.id, 'player'], witnesses: [n.id],
+      WorldEvents.record(S, 'rescued_player', { loc, actors: [n.id, 'player'], witnesses: [n.id, 'player'],
         data: { subject: 'player', target: n.id, cause: cause || null } });
       Bus.emit(S, 'PLAYER_RESCUED', { npcId: n.id, loc });
     } else {
@@ -69,7 +69,25 @@ const Collapse = (() => {
     return { rescuer: n, minutes, lost, again, lines };
   }
 
-  return { findRescuer, resolve };
+  // 밤의 목소리를 따라갔다 [결정 #6 · 스토리설계.md 단계 0~4 장면 문장 B]: 쓰러지지 않는다 (쓰러진 횟수에 세지 않는다).
+  // 정신을 잃었다가 새벽 직전에 깨어난다. 처음 보는 자리다 (가 보지 않은 이웃 숲으로 옮긴다 [후보]). 잃는 것은 시간과 힘뿐이다.
+  function lose(S) {
+    const { W } = S;
+    const me = W.player;
+    const R = RULES.protection;
+    const from = me.loc;
+    World.tick(S, Math.max(R.shakenMin, Time.untilDawn(W.time.t) - 30), { unconscious: true });
+    W.worldFlags.feed.length = 0;
+    W.worldFlags.notes.length = 0;
+    me.hp = Math.max(me.hp, R.minHp);
+    me.surv.fatigue = Math.min(100, me.surv.fatigue + R.shakenFatigue);
+    const near = Places.neighbors(from).filter((l) => LOCS[l] && Places.regionOf(l) === 'forest' && !['edge', 'hollow'].includes(l));
+    const strange = near.find((l) => ['unknown', 'seen'].includes(Knowledge.locState(S.P, l))) || near[0];
+    if (strange) Player.teleport(S, strange);
+    return { from, to: me.loc };
+  }
+
+  return { findRescuer, resolve, lose };
 })();
 
 if (typeof module !== 'undefined') module.exports = { Collapse };

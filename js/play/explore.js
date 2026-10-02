@@ -12,6 +12,8 @@ const Explore = (() => {
     const { W } = S;
     const done = W.worldFlags.done[loc] = W.worldFlags.done[loc] || {};
     done[id] = true;
+    const a = LOCS[loc] && LOCS[loc].actions.find((x) => x.id === id);
+    LifeLog.act(S, (a && a.kind) || 'explore', { min: a ? a.min : 0 });
     const total = (LOCS[loc] && LOCS[loc].actions.length) || 1;
     if (Object.keys(done).length >= Math.ceil(total / 2)) Knowledge.location(S, loc, 'explored');
   }

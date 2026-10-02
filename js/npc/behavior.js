@@ -15,7 +15,7 @@ const Behavior = (() => {
     .sort((a, b) => ITEM_DEFS[b].properties.weapon.dmg - ITEM_DEFS[a].properties.weapon.dmg)[0] || null;
   function useItem(n, k) { n.inventory[k]--; if (n.inventory[k] <= 0) delete n.inventory[k]; }
   const HERB_JOBS = ['herbalist', 'herbalist_apprentice']; // 숲에서 약초를 캐는 사람
-  const canTravel = (n) => n.physical.shock <= 20 && n.physical.health >= 15 && n.needs.fatigue < 95;
+  const canTravel = (n) => n.physical.shock <= 20 && n.physical.health >= 15 && n.needs.fatigue < 95 && Condition.canTravel(n);
   const hasWater = (n, loc) => Places.has(loc, 'water') || (n.inventory.waterskin > 0);
 
   function context(S, n, now) {
@@ -106,8 +106,11 @@ const Behavior = (() => {
       score: (n, c) => 50 - c.threat * 0.6 - c.W.regions[c.region].threat * 0.3 + (c.sched && c.sched.act === 'gather' ? 15 : 0),
       start: () => ({ min: 60 }),
       tick: (S, n, c, d) => {
-        // 위험하다는 소문이 돌면 멀리까지 나가지 않아 덜 캔다
-        const p = (d / 60) * 0.6 * (1 - c.W.regions.village.threat / 120);
+        // 위험하다는 소문이 돌면 멀리까지 나가지 않아 덜 캔다. 숲에서는 숲의 위험이 채집을 줄인다.
+        // 리아는 채집 범위(약재 부족 사건)에 따라 캐는 양이 다르다 (RULES.herbShortage.rangeYield)
+        const fear = c.region === 'forest' ? c.W.regions.forest.threat / 100 : c.W.regions.village.threat / 120;
+        const range = n.flags.range ? RULES.herbShortage.rangeYield[n.flags.range] || 1 : 1;
+        const p = (d / 60) * RULES.herbShortage.gatherRate * range * (1 - fear);
         if (Rng.chance(c.W, p)) n.inventory.herb = (n.inventory.herb || 0) + 1;
       },
     },
@@ -218,7 +221,7 @@ const Behavior = (() => {
       },
     },
     teach: {
-      avail: (n, c) => c.playerHere && c.relP && c.relP.trust >= 45 && n.mental.fear < 50 && c.threat < 20
+      avail: (n, c) => c.playerHere && c.relP && n.teach && c.relP.trust >= n.teach.minTrust && n.mental.fear < 50 && c.threat < 20
         && (n.flags.taughtAt == null || c.now - n.flags.taughtAt >= 60) && Lang.canTeach(S_(c), n),
       score: (n, c) => n.personality.kindness * 0.3 + n.personality.patience * 0.2 + c.relP.trust * 0.3,
       start: (S, n, c) => { n.flags.taughtAt = c.now; Lang.teach(S, n); return { min: 10 }; },
@@ -328,9 +331,14 @@ const Behavior = (() => {
     const trip = Goals.get(n, 'trade_trip');
     if (trip && trip.priority >= 50 && !n.flags.tripDone && c.loc !== trip.target && !c.dark) out.push({ to: trip.target, score: trip.priority });
     if (trip && n.flags.tripDone && c.loc !== c.home && !c.dark) out.push({ to: c.home, score: 60 });
-    if (c.sched && c.sched.at && c.sched.at !== c.loc && Places.regionOf(c.sched.at) === Places.regionOf(c.home) && Npc.atHome(n)) {
-      out.push({ to: c.sched.at, score: 40 + (c.sched.act === 'sleep' ? 20 : 0) });
+    // 일정대로 움직인다: 보통은 사는 지역 안에서만. 채집만은 이웃 지역(숲)까지 나갔다가 (commute) 일정이 끝나면 돌아온다
+    if (c.sched && c.sched.at && c.sched.at !== c.loc) {
+      const local = Places.regionOf(c.sched.at) === Places.regionOf(c.home);
+      if (local && Npc.atHome(n)) out.push({ to: c.sched.at, score: 40 + (c.sched.act === 'sleep' ? 20 : 0) });
+      else if (local && n.flags.commute) out.push({ to: c.sched.at, score: 55 });
+      else if (!local && c.sched.act === 'gather' && Npc.atHome(n) && !c.dark && canTravel(n)) { n.flags.commute = true; out.push({ to: c.sched.at, score: 40 }); }
     }
+    if (n.flags.commute && Npc.atHome(n) && !(c.sched && c.sched.act === 'gather')) delete n.flags.commute;
     if (n.needs.thirst >= 80 && !hasWater(n, c.loc)) {
       const w = Places.neighbors(c.loc).find((x) => Places.has(x, 'water'));
       if (w) out.push({ to: w, score: n.needs.thirst * 0.9 });

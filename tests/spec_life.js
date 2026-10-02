@@ -1,5 +1,5 @@
 // 생활 시스템 테스트 (스토리 재설계: 되감기 폐기, 쓰러짐 + 일·거처·동행·단서). spec.js의 도구(newGame, to, run ...)를 쓴다.
-function inVillage(S, loc, d = 1, h = 9) { to(S, d, h); Player.teleport(S, loc); }
+// inVillage(S, loc, d, h)는 tests/spec.js에 있다 (여러 spec 파일이 같이 쓴다)
 
 // C1 혼자 쓰러짐: 되감기가 아니라 같은 세계에서 시간이 흐른 뒤 깨어난다
 (() => {
@@ -46,8 +46,8 @@ function inVillage(S, loc, d = 1, h = 9) { to(S, d, h); Player.teleport(S, loc);
   const S = newGame();
   inVillage(S, 'village_field', 2, 7);
   const jobs = Work.available(S).map((j) => j.id);
-  const h = S.W.npcs.herbalist;
-  const t0 = Rel.get(S.W, 'herbalist', 'player').trust;
+  const h = S.W.npcs.farmer; // 밭일은 밭 주인이 맡긴다 (노파는 밭에 나가지 않는다 [D9])
+  const t0 = Rel.get(S.W, 'farmer', 'player').trust;
   const pass = (m, o) => { World.tick(S, m, o); return []; };
   if (jobs.includes('field')) Work.perform(S, 'field', pass);
   const rums1 = Object.values(S.W.rumors).filter((x) => x.type === 'worked').length;
@@ -55,19 +55,19 @@ function inVillage(S, loc, d = 1, h = 9) { to(S, d, h); Player.teleport(S, loc);
   if (Work.available(S).some((j) => j.id === 'field')) Work.perform(S, 'field', pass);
   const rums2 = Object.values(S.W.rumors).filter((x) => x.type === 'worked').length;
   check('L1 일(품삯) → 돈·직업 경향·호감·기억·소문 (하루 한 번)', jobs.includes('field') && S.W.player.money >= 4 && S.W.player.tendency.labor >= 120
-    && Rel.get(S.W, 'herbalist', 'player').trust > t0 && Memory.has(h, 'player', 'worked_with') && rums1 === 1 && rums2 === 1,
-    `할 수 있던 일 ${jobs}, 돈 ${S.W.player.money}, 경향 ${JSON.stringify(S.W.player.tendency)}, 노파 신뢰 ${t0}→${Rel.get(S.W, 'herbalist', 'player').trust}, 소문 ${rums1}→${rums2}`);
+    && Rel.get(S.W, 'farmer', 'player').trust > t0 && Memory.has(h, 'player', 'worked_with') && rums1 === 1 && rums2 === 1,
+    `할 수 있던 일 ${jobs}, 돈 ${S.W.player.money}, 경향 ${JSON.stringify(S.W.player.tendency)}, 밭 주인 신뢰 ${t0}→${Rel.get(S.W, 'farmer', 'player').trust}, 소문 ${rums1}→${rums2}`);
 })();
 
 // L2 거처: 믿음과 돈에 따라 구할 수 있는 잠자리가 다르고, 잠의 질이 회복을 바꾼다
 (() => {
   const S = newGame();
-  inVillage(S, 'village_square', 2, 10);
+  inVillage(S, 'village_inn', 2, 10);
   const noMoney = Lodging.offers(S).map((o) => o.id);
   S.W.player.money = 10;
   const withMoney = Lodging.offers(S).map((o) => o.id);
   Lodging.take(S, 'room');
-  to(S, 2, 21); Player.teleport(S, 'village_square'); keepAlive(S);
+  to(S, 2, 21); Player.teleport(S, 'village_inn'); keepAlive(S);
   S.W.player.hp = 3;
   const can = Lodging.canSleep(S);
   const lines = Lodging.sleep(S, (m, o) => { World.tick(S, m, o); return []; });

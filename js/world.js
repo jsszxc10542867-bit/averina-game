@@ -1,6 +1,6 @@
 // 숲의 지형, 행동, 시간에 따른 사건 (이야기 내용). 화면과 무관한 순수 데이터/로직이다.
 // 각 행동의 run(g)은 출력할 줄 배열을 반환한다.
-// g = { W(세계), P(되감아도 남는 것), me(플레이어의 몸), period(시간대), dark(어두운가), first, give, know, use }
+// g = { W(세계), P(플레이어가 아는 것), me(플레이어의 몸), period(시간대), dark(어두운가), first, give, know, use }
 // 아이템 이름과 성질은 data/items.js에 있다.
 
 // 시간대별 하늘 (시간대는 core/time.js)
@@ -273,7 +273,7 @@ LOCS.hollow = {
 // 숲을 벗어나는 곳 (지금 만든 부분의 끝)
 LOCS.edge = { name: '숲의 가장자리', desc: () => [], exits: [], actions: [] };
 
-// 알아낸 것 (되감기 뒤에도 남는다). 수첩에 이 문장으로 기록된다.
+// 알아낸 것. 수첩에 이 문장으로 기록된다.
 const KNOW = {
   no_trail: '내가 눈을 뜬 자리에는, 이어지는 발자국이 없었다.',
   fresh_prints: '개울가 진흙에 앞이 갈라진 발자국이 있었다.',
@@ -286,7 +286,11 @@ const KNOW = {
   night_cry: '밤이 되면 멀리서 무언가가 운다.',
   name_call: '밤에, 내 이름을 부르는 목소리가 있다.',
   night_path: '밤이 되면 낮에 없던 길이 생긴다.',
-  voice_kills: '그 목소리를 따라가면, 죽는다.',
+  voice_lost: '그 목소리를 따라가면, 정신을 잃는다. 시간이 사라진다.', // 예전 이름 voice_kills (state.js에서 옮긴다)
+  // 약재 부족 (시작마을.md 8절) [임시 문장]
+  herb_short: '마을에 약초가 모자란다. 노파의 상처를 돌볼 약초도.',
+  herb_thrift: '같은 풀을 갈라 쓰고 찌꺼기를 다시 우려내면, 약초를 아낄 수 있다.',
+  edge_beasts: '숲 가장자리 채집지에도 짐승이 내려온다.',
   berry_poison: '붉은 열매는 먹으면 안 된다.',
   herb_heals: '쓴 냄새가 나는 풀은 피를 멎게 한다.',
   girl_hollow: '둘째 날 아침, 숲 속 움푹한 곳에 다친 여자가 있다.',
@@ -357,7 +361,7 @@ const Story = (() => {
         if (!seen.night) {
           lines.push('완전히 어두워졌다.', '그리고……', '낮에는 듣지 못했던 소리가 들리기 시작한다.',
             '멀리서 무언가가 운다. 길고 낮은 소리다.', '짐승의 것 같기도, 사람의 것 같기도 하다.');
-          P.knowledge.night_cry = true;
+          if (!P.knowledge.night_cry) P.knowledge.night_cry = e.at;
         } else lines.push('다시 밤이 왔다.');
         seen.night = true;
       } else if (e.id === 'call') {

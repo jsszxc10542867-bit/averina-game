@@ -8,6 +8,7 @@ const Rumor = (() => {
     died: 95, attacked: 90, missing: 75, threatened: 70, helped: 60, beast_seen: 55, theft: 50,
     stranger_seen: 40, war_tension: 45, beasts_rising: 50, anomaly: 40, trade_boom: 35,
     rescued: 55, worked: 30,
+    herb_scarce: 45, herb_helped: 55, // 약재 부족 (시작마을.md 8절)
   };
 
   // 사건 종류 → 소문 종류
@@ -74,6 +75,8 @@ const Rumor = (() => {
         // 쓰러졌다가 구조된 이방인: 조금 덜 경계한다 / 일을 거든 이방인: 성실하다는 인상
         rescued: { suspicion: -3 },
         worked: { trust: 3, suspicion: -4, respect: 2 },
+        // 약초집을 도운 이방인
+        herb_helped: { trust: 5, suspicion: -5, respect: 4 },
       }[r.type];
       if (d) Rel.change(S, n.id, 'player', d, 'rumor:' + r.type, true);
       // 도움을 받은 당사자의 증언: "이 이방인이 나를 도왔다" (예: 리아가 스승에게)
@@ -101,6 +104,7 @@ const Rumor = (() => {
       Regions.raiseThreat(S, 'village', r.type === 'beast_seen' ? 8 * strong : 5);
     }
     if (r.type === 'war_tension') n.mental.stress = clamp(n.mental.stress + 3);
+    if (r.type === 'herb_scarce') n.mental.stress = clamp(n.mental.stress + 3);
   }
 
   // 말로 옮긴다 (대사 표기 그대로. 듣는 사람의 이해도에 따라 가려진다)
@@ -116,7 +120,7 @@ const Rumor = (() => {
     return tpl[Math.min(level, tpl.length - 1)].replace(/\{actor\}/g, who(r.subject)).replace(/\{target\}/g, who(r.target));
   }
   // 표기를 걷어 낸 한국어 (디버그 화면과 NPC 사이의 기록용)
-  const plain = (W, r, level) => { const s = speech(W, r, level); return s ? s.replace(/\[\[([^:\]|]+)(?::\d+)?(?:\|[^\]]+)?\]\]/g, '$1') : r.type; };
+  const plain = (W, r, level) => { const s = speech(W, r, level); return s ? s.replace(LangParser.RE, '$1') : r.type; };
 
   // 하루마다: 오래되고 사소한 소문은 잊힌다
   function daily(S) {

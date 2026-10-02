@@ -53,7 +53,8 @@ const Dialogue = (() => {
     const ids = [...new Set(f.map((x) => TEACHABLE[x]).filter(Boolean).concat(TEACH_ALWAYS))];
     return ids.filter((id) => LangKnowledge.word(S, 'player', 'common_aver', id).confidence < LangKnowledge.KNOWN);
   }
-  const canTeach = (S, n) => LangKnowledge.get(S, n.id, 'common_aver').speaking >= 60 && teachable(S, n).length > 0;
+  // 말을 가르쳐 주는 사람만 가르친다 [결정 D11: 리아 · 마을 아이 · 또래 — NPC_DEFS의 teach]
+  const canTeach = (S, n) => !!n.teach && LangKnowledge.get(S, n.id, 'common_aver').speaking >= 60 && teachable(S, n).length > 0;
 
   function teach(S, n) {
     const id = teachable(S, n)[0];

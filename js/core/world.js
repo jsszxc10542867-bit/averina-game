@@ -16,7 +16,7 @@ const World = (() => {
       factions: Factions.create(),
       politics: Factions.createPolitics(),
       relationships: {},
-      events: { log: [], active: {}, scheduled: WorldEvents.initialSchedule() },
+      events: { log: [], active: {}, scheduled: WorldEvents.initialSchedule(), states: {} },
       rumors: {},
       economy: Economy.create(),
       // 장면 진행 표시: seen(한 번만 나오는 장면), counts(반복 행동 횟수), done(장소에서 해 본 일),
@@ -59,6 +59,7 @@ const World = (() => {
     Rel.process(S);
     Places.update(S);
     Magic.regen(S);
+    Incidents.hourly(S); // 마을 사건: 도착하는 것, 플레이어가 알게 되는 길
   }
 
   // 하루마다 (새벽 6시): 지역의 위협, 세력(updateFactions), 경제(updateEconomy), 기억과 소문의 망각, 기록(recordHistory)
@@ -66,6 +67,8 @@ const World = (() => {
     Regions.daily(S);
     Factions.daily(S);
     Economy.daily(S);
+    Condition.daily(S); // 노파의 상처를 약초로 관리한다 [D9]
+    Incidents.daily(S); // 마을 사건의 상태 (열림·악화·시한)
     Memory.decay(S);
     Rumor.daily(S);
     recordHistory(S);

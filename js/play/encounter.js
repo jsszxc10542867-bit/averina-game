@@ -6,12 +6,45 @@ const Encounter = (() => {
   const armed = (n) => Object.keys(n.inventory).some((k) => ITEM_DEFS[k] && ITEM_DEFS[k].category === 'weapon');
   const GIFTS = ['bread', 'dried_meat', 'waterskin', 'bandage', 'herb', 'berry'];
 
-  // NPC의 첫마디: 무엇을 하던 중이었는지, 나를 어떻게 여기는지에 따라
-  function opening(S, n) {
+  // 처음 만날 때의 모습과 첫마디 (스토리설계.md 단계 5 장면 문장 C). look(S, n, w): 모습 줄 / say: 첫마디 / after: 말하며 하는 몸짓
+  // 그 자리와 시각에 맞지 않으면 null (보통의 첫 만남이 된다)
+  const herbalHeard = (S, n) => Object.keys(n.knowledge.rumors).some((id) => S.W.rumors[id] && (S.W.rumors[id].subject === 'player' || S.W.rumors[id].target === 'player'));
+  const helpedLia = (S) => (S.W.player.life.choices || []).some((c) => c.id === 'lia_first_meeting' && c.outcome === 'helped');
+  const offHours = (S) => { const h = Time.hour(S.W.time.t); return h < 8 || h >= 18; };
+  const FIRST = {
+    innkeeper: (S, n, w) => (n.location.loc === 'village_inn'
+      ? { look: [`넓은 방 안쪽에서 ${J(w, '이가')} 국자를 든 채 나를 위아래로 훑어본다.`, '젖은 옷, 흙 묻은 맨손. 그 눈이 내 빈손에서 멈춘다.'],
+        say: 'greet_innkeeper', after: '말하며 국자로 솥을, 이어 계단 위를 가리킨다.' } : null),
+    peer: (S, n, w) => ({ look: [n.location.loc === 'village_square' ? `우물가에 걸터앉은 ${J(w, '이가')} 나를 보고 눈을 가늘게 뜬다.` : `${J(w, '이가')} 나를 보고 눈을 가늘게 뜬다.`,
+      '피하지 않는다. 오히려 재미있다는 얼굴이다.'], say: 'greet_peer', after: '숲 쪽을 엄지로 가리킨다.' }),
+    child: () => ({ look: ['집 모퉁이에서 작은 얼굴이 반쯤 나와 있다.', '눈이 마주치자 쏙 들어간다.', '……다시 나온다.'],
+      say: 'greet_child', after: '손가락으로 나를 콕 찌르는 시늉을 한다.' }),
+    farmer: (S, n, w) => (Time.dark(S.W.time.t) || Time.band(S.W.time.t) === 'evening'
+      ? { look: [`${J(w, '이가')} 나를 한 번 본다.`], say: null, after: '고개만 한 번 끄덕이고, 집 쪽으로 걸어간다.', home: true }
+      : n.location.loc === 'village_field'
+        ? { look: [`밭 가장자리에서 ${J(w, '이가')} 괭이에 기대어 나를 본다.`, '내 손을 본다. 일하는 손인지 보는 것 같다.'], say: 'greet_farmer', after: '괭이를 들어 보인다.' }
+        : null),
+    merchant: (S, n, w) => (offHours(S)
+      ? { look: [`천막을 걷던 ${J(w, '이가')} 손을 멈춘다.`, '내 차림을 보고, 내 빈손을 보고, 다시 천막을 걷는다.'], say: 'greet_merchant', after: '접힌 천막을 손바닥으로 두드린다.' }
+      : null),
+    herbalist: (S, n, w) => {
+      const liaHere = Npc.present(S.W, S.W.npcs.lia);
+      const look = n.location.loc === 'village_herbhouse'
+        ? [`약초 통 사이에 앉은 ${J(w, '이가')} 고개를 든다.`, '눈이 맑다. 나를 오래, 아주 천천히 본다.']
+        : [`${J(w, '이가')} 고개를 든다.`, '눈이 맑다. 나를 오래, 아주 천천히 본다.'];
+      if (liaHere && helpedLia(S)) look.push('……그리고 문 쪽의 리아를 한 번 본다. 리아가 짧게 고개를 끄덕인다.');
+      return { look, say: herbalHeard(S, n) || liaHere ? 'greet_herbalist' : 'greet_herbalist_unknown' };
+    },
+  };
+
+  // NPC의 첫마디: 무엇을 하던 중이었는지, 나를 어떻게 여기는지에 따라. first = 처음 만날 때의 첫마디(있으면)
+  function opening(S, n, first) {
     const r = Rel.get(S.W, n.id, 'player');
     const search = Goals.get(n, 'search');
     if (search) return { id: 'ask_seen', vars: { target: S.W.npcs[search.target].identity.name } };
     if (r.hostility >= 50) return { id: 'go_away' };
+    // 처음 만날 때는 사람별 첫마디. 적대·의심이 크면 그보다 먼저 쫓거나 따져 묻는다
+    if (first && r.suspicion < 60) return first;
     if (r.trust >= 40 && Player.bleeding(S.W)) return { id: 'are_you_ok' };
     if (r.trust >= 40) return { id: 'greet_warm' };
     // 지키는 사람이거나 나를 크게 의심하면 따져 묻고, 아니면 말을 건다
@@ -21,7 +54,8 @@ const Encounter = (() => {
 
   function speak(S, n, d) {
     const r = Dialogue.process(S, { speakerId: n.id, listenerId: 'player', dialogueId: d.id, vars: d.vars });
-    return r.tone && !r.fullyUnderstood ? [r.displayText, r.tone] : [r.displayText];
+    const said = Lang.line(r, n.id);
+    return r.tone && !r.fullyUnderstood ? [said, r.tone] : [said];
   }
 
   const ACTIVITY = {
@@ -53,12 +87,34 @@ const Encounter = (() => {
     const n = W.npcs[id];
     ui.talker = id;
     const first = !Memory.has(n, 'player', 'met');
-    Social.meet(S, id);
     const who = () => Narrative.who(S, n);
-    const lines = [id === 'lia' ? '그녀다.' : `${J(first ? n.identity.desc : who(), '이가')} 있다.`];
-    const act = n.currentAction && ACTIVITY[n.currentAction.type];
-    if (act) lines.push(act);
-    lines.push('', `${J(who(), '이가')} 나를 본다.`, ...speak(S, n, opening(S, n)), ...Narrative.describe(S, n));
+    const fl = first && FIRST[id] ? FIRST[id](S, n, who()) : null;
+    Social.meet(S, id);
+    let lines;
+    if (fl) {
+      // 처음 만나는 마을 사람: 사람별 모습과 첫마디 (스토리설계.md 단계 5 장면 문장 C)
+      lines = [...fl.look];
+      const o = opening(S, n, fl.say ? { id: fl.say } : null);
+      if (fl.say && o.id === fl.say) lines.push(...speak(S, n, o), ...(fl.after ? [fl.after] : []));
+      else if (!fl.say && o.id !== 'go_away' && o.id !== 'ask_seen') {
+        // 말없이 몸짓만 (저녁의 밭 주인: 고개만 끄덕이고 집으로 간다)
+        lines.push(fl.after);
+        if (fl.home) Npc.startMove(S, n, n.location.home);
+      } else lines.push(...speak(S, n, o)); // 적대·의심이 크면 사람별 첫마디보다 먼저
+      lines.push(...Narrative.describe(S, n));
+    } else {
+      // 리아를 마을(약초집)에서 처음 다시 본다
+      const villageLia = id === 'lia' && !n.flags.seenInVillage && n.location.loc === 'village_herbhouse';
+      if (villageLia) n.flags.seenInVillage = true;
+      lines = [id === 'lia'
+        ? (villageLia ? (Rel.get(W, 'lia', 'player').trust >= 30
+          ? '리아가 팔에 새 천을 감고 있다. 나를 보더니, 놀라지 않는다. 올 줄 알았다는 얼굴이다.'
+          : '리아가 문간에서 나를 본다. 반가운 얼굴은 아니다. 그래도 문을 닫지는 않는다.') : '그녀다.')
+        : `${J(first ? n.identity.desc : who(), '이가')} 있다.`];
+      const act = n.currentAction && ACTIVITY[n.currentAction.type];
+      if (act) lines.push(act);
+      lines.push('', `${J(who(), '이가')} 나를 본다.`, ...speak(S, n, opening(S, n)), ...Narrative.describe(S, n));
+    }
     await ui.page(lines);
 
     while (true) {
@@ -83,6 +139,8 @@ const Encounter = (() => {
       opts.push({ id: 'leave', label: '물러선다', sep: true });
       const { idx, manner } = await ui.choose(opts);
       const a = opts[idx].id;
+      // 삶의 기록: 사람을 대한 일 (건넨 선물은 도움으로 따로 쌓인다)
+      if (a !== 'leave' && a !== 'give') LifeLog.act(S, a === 'threat' || a === 'attack' ? 'fight' : 'talk', { min: 5 });
       const w = who();
       let out = [], min = 5;
 

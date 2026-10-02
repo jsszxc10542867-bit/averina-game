@@ -37,6 +37,10 @@ const Lang = (() => {
   // ---------- 장면에서 쓰는 것 ----------
   // NPC가 플레이어에게 말한다. 화면에 보일 문장을 돌려준다.
   const speak = (S, text, speakerId) => Dialogue.process(S, { speakerId, listenerId: 'player', text }).displayText;
+  // 화면에 올릴 대사 줄. r은 Dialogue.process의 결과(또는 문장). who는 말한 NPC의 id — 화면이 이름표를 붙인다.
+  // parts가 있으면 화면이 낯선 소리를 <span class="foreign">으로 감싼다 (글자는 t와 같다)
+  const line = (r, who) => (typeof r === 'string' ? { t: r, cls: 'speech', who: who || null }
+    : { t: r.displayText, cls: 'speech', who: who || null, parts: r.parts || null });
   // 뜻을 알아냈다 (상황으로 분명히 짐작했다). 새로 알게 되었으면 true
   function learn(S, surface, o = {}) {
     const before = LangKnowledge.word(S, 'player', AVER, idOf(surface)).confidence;
@@ -56,7 +60,7 @@ const Lang = (() => {
     AVER, idOf,
     getLanguageKnowledge, getWordKnowledge, processDialogue, calculateUnderstanding, learnWord, learnFromContext,
     canSpeak, canRead, translateForPlayer,
-    speak, learn, guess, knows, canTeach, teach, sense,
+    speak, line, learn, guess, knows, canTeach, teach, sense,
   };
 })();
 

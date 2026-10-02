@@ -37,13 +37,22 @@ const Regions = (() => {
     });
   }
 
-  // 하루에 한 번: 위협은 조금씩 가라앉는다
+  // 하루에 한 번: 위협은 조금씩 가라앉는다. 숲은 마물이 늘어나는 흐름 아래로는 내려가지 않는다 (RULES.forest [임시])
   function daily(S) {
-    Object.values(S.W.regions).forEach((r) => {
+    Object.entries(S.W.regions).forEach(([id, r]) => {
       r.threat = Math.max(0, r.threat - 4);
       r.alert = Math.max(0, r.alert - 10);
+      if (id === 'forest') {
+        const F = RULES.forest;
+        const trend = Math.min(F.max, F.trendStart + F.perDay * (Time.day(S.W.time.t) - 1));
+        r.threat = Math.max(r.threat, trend);
+      }
     });
   }
+  // 숲에서 짐승이 사람을 덮치거나 마주치면 숲의 위협이 오른다
+  Bus.on('WORLD_EVENT_CREATED', (S, e) => {
+    if ((e.kind === 'beast_attack' || e.kind === 'beast_encounter') && Places.regionOf(e.loc) === 'forest') raiseThreat(S, 'forest', RULES.forest.beastRaise);
+  });
 
   function raiseThreat(S, region, n) {
     const r = S.W.regions[region];

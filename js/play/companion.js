@@ -61,7 +61,7 @@ const Companion = (() => {
       Npc.place(S, n, to);
       Rel.change(S, n.id, 'player', { familiarity: 2 }, 'walked_together', true);
       // 함께 걷다 보면 가끔 무언가를 가리키며 말을 가르쳐 준다
-      if (Rng.chance(W, 0.3) && Lang.canTeach(S, n) && r.trust >= 45) Lang.teach(S, n);
+      if (Rng.chance(W, 0.3) && Lang.canTeach(S, n) && r.trust >= n.teach.minTrust) Lang.teach(S, n);
     });
     return lines;
   }

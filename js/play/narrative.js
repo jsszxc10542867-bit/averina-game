@@ -13,7 +13,7 @@ const Narrative = (() => {
     return first ? d : d.split(' ').pop();
   }
 
-  // 이번 회차에 아직 마주하지 않은 사람은 만남 장면이 직접 소개한다 (먼저 적으면 등장을 망친다)
+  // 아직 마주하지 않은 사람은 만남 장면이 직접 소개한다 (먼저 적으면 등장을 망친다)
   const met = (n) => Memory.has(n, 'player', 'met');
 
   function feedArrive(S, n) {
@@ -61,7 +61,7 @@ const Narrative = (() => {
     if (last && last.type === 'search' && S.W.time.t - last.t < 60) return;
     n.flags.narr = { type: 'search', t: S.W.time.t };
     const r = Dialogue.process(S, { speakerId: n.id, listenerId: 'player', dialogueId: 'call_name', vars: { target: tgt.identity.name } });
-    feed(S, r.displayText);
+    feed(S, Lang.line(r, n.id));
     if (r.tone && !r.fullyUnderstood) feed(S, r.tone);
   }
 
@@ -73,10 +73,11 @@ const Narrative = (() => {
     const text = Rumor.speech(S.W, told.rumor, told.level);
     if (!text) return;
     const r = Dialogue.process(S, { speakerId: a.id, listenerId: 'player', text });
-    feed(S, r.displayText);
+    feed(S, Lang.line(r, a.id));
     Knowledge.rumor(S, told.rumor.id, told.level);
     // 절반 넘게 알아들었다면 그 이야기는 단서가 된다
     if (r.understanding >= 0.5) Clues.onRumor(S, told.rumor.type);
+    Incidents.notice(S, 'rumor', { type: told.rumor.type, understanding: r.understanding });
   }
 
   function feedHelpPlayer(S, n, item) {

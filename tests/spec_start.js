@@ -37,26 +37,26 @@ function helpedWorld(help) {
 (() => {
   const A = helpedWorld(true), B = helpedWorld(false);
   const tA = Rel.get(A.W, 'herbalist', 'player').trust, tB = Rel.get(B.W, 'herbalist', 'player').trust;
-  Player.teleport(A, 'village_homes');
-  const offersA = Npc.at(A.W, 'herbalist', 'village_homes') ? Lodging.offers(A).map((o) => o.id) : ['(노파 부재)'];
+  Player.teleport(A, 'village_herbhouse');
+  const offersA = Npc.at(A.W, 'herbalist', 'village_herbhouse') ? Lodging.offers(A).map((o) => o.id) : ['(노파 부재)'];
   const heardFromLia = Object.values(A.W.npcs.herbalist.knowledge.rumors).some((h) => h.from === 'lia');
   check('S1 첫 잠자리 ① 리아를 도왔다 → 리아의 말로 노파가 헛간을 내준다 (돕지 않았다면 아니다)', tA >= 30 && tB < 30 && heardFromLia && offersA.includes('barn'),
     `노파의 신뢰: 도움 ${Math.round(tA)} / 안 도움 ${Math.round(tB)}, 리아에게 들음 ${heardFromLia}, 집들에서 구할 수 있는 잠자리 ${offersA}`);
 })();
 
-// S2 일로 치르기: 돈이 없어도 저녁에 가게 일을 거들면 뒷방에서 잔다. 그 밤의 방값은 받지 않는다.
+// S2 일로 치르기: 돈이 없어도 저녁에 여관 일을 거들면 여관 방에서 잔다. 그 밤의 방값은 받지 않는다. [D7: 여관 겸 밥집]
 (() => {
   const S = newGame();
-  inVillage(S, 'village_square', 2, 16);
+  inVillage(S, 'village_inn', 2, 16);
   keepAlive(S);
   const offers = Lodging.offers(S).map((o) => o.id);
   const t0 = S.W.time.t;
   const lines = Lodging.take(S, 'room_work', (m, o) => { World.tick(S, m, o); return []; });
   const worked = S.W.time.t - t0;
-  to(S, 2, 21); Player.teleport(S, 'village_square'); keepAlive(S);
+  to(S, 2, 21); Player.teleport(S, 'village_inn'); keepAlive(S);
   const money0 = S.W.player.money;
   Lodging.sleep(S, (m, o) => { World.tick(S, m, o); return []; });
-  check('S2 첫 잠자리 ② 돈 없이 일을 거들고 재워 달라고 한다 → 뒷방, 그 밤 방값 없음', offers.includes('room_work') && !offers.includes('room') && worked >= 90
+  check('S2 첫 잠자리 ② 돈 없이 여관 일을 거들고 재워 달라고 한다 → 여관 방, 그 밤 방값 없음', offers.includes('room_work') && !offers.includes('room') && worked >= 90
     && money0 === 0 && S.W.player.money === 0 && Time.clock(S.W.time.t) === 360 && S.W.player.tendency.labor >= 90,
     `돈 0일 때 구할 수 있는 잠자리 ${offers}, 일한 시간 ${worked}분, 아침 돈 ${S.W.player.money}, "${lines.slice(-1)}"`);
 })();
@@ -96,7 +96,7 @@ function helpedWorld(help) {
   const S = newGame();
   inVillage(S, 'village_field', 3, 12);
   const L = lia(S), h = S.W.npcs.herbalist;
-  Npc.place(S, L, 'village_homes'); Npc.place(S, h, 'village_homes');
+  Npc.place(S, L, 'village_herbhouse'); Npc.place(S, h, 'village_herbhouse');
   L.physical.injured = false; L.physical.shock = 0; L.physical.health = 100; L.physical.bleed = 0;
   L.inventory.herb = 4;
   const h0 = h.inventory.herb || 0;

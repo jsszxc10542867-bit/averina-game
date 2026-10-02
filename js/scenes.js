@@ -213,10 +213,8 @@ const Scenes = (() => {
 
   // ---------- 첫날 밤, 이름을 부르는 목소리 ----------
   async function call(ui) {
-    const { P, me } = ui;
     const lines = ['……어디선가 목소리가 들린다.', '「……{이름}……」', '바람 소리였을까.', '',
       '아니다. 다시 들린다. 이번엔 조금 더 가깝다.', '「……{이름}.」', '그 소리는 분명, 내 이름의 모양을 하고 있다.'];
-    if (P.knowledge.voice_kills) lines.push('', K('……이 목소리를 안다.'), K('따라가면 어떻게 되는지도.'));
     await ui.page(lines);
     ui.know('name_call');
     const opts = [
@@ -224,21 +222,29 @@ const Scenes = (() => {
       { id: 'look', label: '소리가 나는 쪽을 본다' },
       { id: 'ears', label: '귀를 막고 웅크린다' },
     ];
-    if (P.knowledge.voice_kills) opts.push({ id: 'silent', label: '숨을 죽인다. 절대 대답하지 않는다', hint: '안다' });
     const { idx } = await ui.choose(opts);
     const a = opts[idx].id;
-    const deathBy = async (pre) => {
-      ui.know('voice_kills');
-      me.cause = '밤의 목소리를 따라갔다';
+    // 목소리를 따라간다 [결정 #6]: 쓰러지지도 죽지도 않는다. 정신을 잃었다가 새벽 직전, 낯선 자리에서 깨어난다.
+    // 목소리의 정체는 [미확정 설정 #7]이라 아무것도 보여 주지 않는다 (스토리설계.md 단계 0~4 장면 문장 B)
+    const follow = async (pre) => {
+      ui.know('voice_lost');
       await ui.page([...pre, '', '몇 걸음. 몇 걸음 더.', '목소리가 멎는다.', '', '뒤에서 누군가 내 어깨에 손을 얹는다.',
-        '차갑다.', '돌아본다.', '', '거기에는……']);
+        '차갑다.', '돌아본다.', '', '아무도 없다.', '',
+        '어깨 위의 차가운 감촉만, 그대로 남아 있다.', '그 감촉이 천천히 목덜미를 타고 올라온다.', '숨을 쉬려는데, 숨이 쉬어지지 않는다.']);
       await ui.more();
-      return 'die';
+      ui.lose();
+      await ui.page(['……', '', '……', '', '흙냄새.', '',
+        '눈을 뜬다. 얼굴이 젖은 흙에 닿아 있다.', '몸을 일으키려다 다시 주저앉는다. 팔다리에 힘이 없다.', '',
+        '처음 보는 나무들이다. 길은 없다.', '낮에 없던 그 길도, 이제는 없다.', '',
+        '하늘이 희끄무레하다.', '……얼마나 지난 거지?', '',
+        '목소리를 따라 몇 걸음 걸었다.', '그것밖에 기억나지 않는다.']);
+      await ui.more();
+      return 'shaken';
     };
     if (a === 'answer') {
       await ui.page(['「……누구야?」', '', '목소리가 멎는다.', '그리고, 아주 가까이에서.', '「이쪽이야, {이름}.」', '', '……내 목소리다.']);
       const r = await ui.choose([{ label: '목소리 쪽으로 간다' }, { label: '뒤로 물러선다' }]);
-      if (r.idx === 0) return deathBy(['나무 사이로 발을 옮긴다.', '낮에 없던 길이 나 있다. 희미하게 빛나는 길이다.']);
+      if (r.idx === 0) return follow(['나무 사이로 발을 옮긴다.', '낮에 없던 길이 나 있다. 희미하게 빛나는 길이다.']);
       ui.use('wil');
       await ui.page(['뒷걸음질 친다. 발밑에서 가지가 부러진다.', '목소리가 뚝 끊긴다.', '',
         '그 뒤로 한참 동안, 아무 소리도 없다.', '무언가가 어둠 속에서 나를 보고 있다는 느낌만 남는다.',
@@ -248,16 +254,13 @@ const Scenes = (() => {
       await ui.page(['어둠 속, 나무 사이에 길이 하나 나 있다.', '낮에는 분명 없던 길이다.',
         '길 끝에서 희미한 빛이 흔들린다.', '목소리는 그 끝에서 들린다.', '「{이름}. 이리 와.」']);
       const r = await ui.choose([{ label: '길을 따라간다' }, { label: '눈을 질끈 감는다' }]);
-      if (r.idx === 0) return deathBy(['홀린 듯 발을 옮긴다.', '길은 발밑에서 부드럽게 빛난다.']);
+      if (r.idx === 0) return follow(['홀린 듯 발을 옮긴다.', '길은 발밑에서 부드럽게 빛난다.']);
       ui.use('wil');
       await ui.page(['눈을 감는다. 숫자를 센다. 하나, 둘, 셋……', '백을 넘겼을 때 눈을 뜬다.', '길은 없다. 원래 그랬던 것처럼.', ...ui.pass(30)]);
     } else {
       ui.use('wil');
-      if (a === 'silent') ui.use('wil');
-      await ui.page(a === 'silent'
-        ? ['입을 틀어막는다. 숨소리조차 내지 않는다.', '목소리는 몇 번 더 내 이름을 부르다가……', '……포기한 듯 멀어진다.', ...ui.pass(30)]
-        : ['귀를 막는다.', '목소리는 손가락 사이로 스며든다.', '「{이름}…… {이름}……」', '이를 악문다. 대답하지 않는다.', '',
-          '……얼마나 지났을까.', '목소리는 사라졌다.', ...ui.pass(40)]);
+      await ui.page(['귀를 막는다.', '목소리는 손가락 사이로 스며든다.', '「{이름}…… {이름}……」', '이를 악문다. 대답하지 않는다.', '',
+        '……얼마나 지났을까.', '목소리는 사라졌다.', ...ui.pass(40)]);
     }
     await ui.more();
     return 'ok';
@@ -268,7 +271,7 @@ const Scenes = (() => {
     const { P, me } = ui;
     Player.unlockStatus(me);
     const again = P.knowledge.status_seen;
-    P.knowledge.status_seen = true;
+    if (!again) P.knowledge.status_seen = ui.W.time.t;
     await ui.page(again
       ? ['몸을 일으킨다.', '……또 이 감각이다.', '내 몸의 상태가, 숫자로 느껴진다.', '']
       : ['몸을 일으킨다. 밤새 굳은 팔다리가 삐걱거린다.', '손을 쥐었다, 편다.', '', '……이상하다.',
@@ -280,7 +283,7 @@ const Scenes = (() => {
     return 'ok';
   }
 
-  // 능력치 배분. 포인트는 회차마다 다시 받는다.
+  // 능력치 배분.
   async function allocate(ui) {
     const { P, me } = ui;
     while (me.status.points > 0) {
@@ -365,8 +368,8 @@ const Scenes = (() => {
     P.memory.worldKnowledge++;
     await ui.page(['그녀가 눈을 감는다. 다친 팔 위에 다른 손을 얹는다.', '입술이 무언가를 낮게 중얼거린다.', '',
       '……손끝이 빛난다.', '희미한, 물빛 같은 빛.', '빛이 닿은 자리에서, 찢어진 살이 천천히 오므라든다.', '',
-      '숨을 쉬는 것도 잊는다.', '「……방금, 뭐 한 거예요?」', '', '그녀가 눈을 뜬다.', ui.speak('「[[뭐:20]]가?」'),
-      '내 얼굴을 한참 들여다보더니, 무언가 알겠다는 듯 눈을 가늘게 뜬다.', ui.speak('「[[마법:45]]…… [[처음:30]] [[봐:30]]?」'), '',
+      '숨을 쉬는 것도 잊는다.', '「……방금, 뭐 한 거예요?」', '', '그녀가 눈을 뜬다.', ui.speak('「[[뭐:20]]가?」', 'lia'),
+      '내 얼굴을 한참 들여다보더니, 무언가 알겠다는 듯 눈을 가늘게 뜬다.', ui.speak('「[[마법:45]]…… [[처음:30]] [[봐:30]]?」', 'lia'), '',
       '뜻은 모른다.', '하지만 그 눈빛은, 이상한 것을 보는 눈빛이다.', '이 세계에서 이상한 건, 나다.']);
     await ui.more();
   }
@@ -377,7 +380,11 @@ const Scenes = (() => {
     G.flags.invited = true;
     const lines = ['그녀가 나무를 짚고 일어선다. 휘청이지만 쓰러지지 않는다.', '단검을 칼집에 꽂고, 숲 저편을 가리킨다.'];
     if (P.knowledge.smoke) lines.push('……비탈 위에서 봤던, 연기가 오르던 쪽이다.');
-    lines.push(ui.speak('「[[마을:20]].」'), '그녀가 걷는 시늉을 하고, 나를 가리키고, 다시 저편을 가리킨다.', ui.speak('「[[같이:30]]…… [[가:30]].」'));
+    lines.push(ui.speak('「[[마을:20]].」', 'lia'), '그녀가 걷는 시늉을 하고, 나를 가리키고, 다시 저편을 가리킨다.',
+      // 스승의 병을 한마디 비친다 [결정 #1 · D9]. 뜻은 모른 채 지나간다 (learn을 걸지 않는다)
+      '그녀가 허리춤의 풀 다발을 한 번 만진다.', ui.speak('「[[할머니:45]]…… [[아파:35]].」', 'lia'),
+      '혼잣말처럼 작은 소리다.', '무슨 뜻인지는 모른다. 그녀는 더 말하지 않는다.', '',
+      ui.speak('「[[같이:30]]…… [[가:30]].」', 'lia'));
     if (ui.learn('마을')) lines.push('', K('……"마을". 사람이 모여 사는 곳을 말하는 것 같다.'));
     ui.know('village');
     await ui.page(lines);
@@ -399,7 +406,28 @@ const Scenes = (() => {
     return w ? { id: w.id, sound: LangRegistry.sound(w.id, w.id) } : null;
   }
 
+  // 리아와의 첫 만남은 중요한 선택으로 삶의 기록에 남는다 [결정 D5]. 첫 장면이 끝날 때, 그 장면에서 한 일로 정한다
   async function girl(ui) {
+    const G = ui.W.npcs.lia;
+    const first = !G.flags.met;
+    const did = new Set();
+    const r = await girlScene(ui, did);
+    if (first) {
+      LifeLog.choose(ui.S, 'lia_first_meeting', firstMeeting(G.flags, did, r),
+        { water: !!G.flags.gotWater, herb: !!G.flags.gotHerb, named: !!G.flags.named, together: r === 'travel', liaAlive: G.alive });
+    }
+    return r;
+  }
+  function firstMeeting(F, did, r) {
+    if (did.has('attack')) return 'attacked';
+    if (did.has('threat')) return 'threatened';
+    if (F.gotWater || F.gotHerb || r === 'travel') return 'helped';
+    if (F.named || F.close || did.has('talk') || did.has('say')) return 'talked';
+    if ([...did].some((a) => a !== 'leave')) return 'kept_distance';
+    return 'passed_by';
+  }
+
+  async function girlScene(ui, did) {
     const { S, W, P, me } = ui;
     const G = W.npcs.lia;
     ui.talker = 'lia';
@@ -410,12 +438,12 @@ const Scenes = (() => {
       Social.meet(S, 'lia');
       ui.know('girl_hollow');
       const l = ['나무뿌리가 엉킨 움푹한 곳.', '거기, 사람이 있다.', '',
-        '젊은 여자다. 나무에 등을 기대고 앉아 있다.', '옷이 피로 젖어 있다. 한쪽 팔을 다른 손으로 꽉 부여잡고 있다.', '',
+        '젊은 여자다. 나무에 등을 기대고 앉아 있다.', '옷이 피로 젖어 있다. 한쪽 팔을 다른 손으로 꽉 부여잡고 있다.',
+        '허리춤에 풀 다발이 매달려 있다. 몇 줄기는 피에 젖었다.', '',
         '마른 가지가 발밑에서 부러진다.', '그녀의 고개가 번쩍 들린다.', '팔을 쥐고 있던 손이, 허리춤의 단검으로 향한다.', '',
         ui.speak('「[[거기:15]]…… [[멈춰:10]].」'), '낮고 갈라진 목소리다.'];
       if (ui.knows('멈춰')) l.push(K('……"멈춰". 이 말을 안다.'));
       else l.push('무슨 말인지 모른다.', '……하지만 그 눈빛이 무엇을 말하는지는 안다.');
-      if (P.deaths > 0 && P.knowledge.girl_name) l.push('', K('……그녀다.'), K('그녀는 나를 모른다.'));
       await ui.page(l);
     } else {
       await ui.page(['그녀는 아직 그 자리에 있다.', ...girlLook(ui, G)]);
@@ -443,7 +471,6 @@ const Scenes = (() => {
 
       Save.write(S);
       const F = G.flags;
-      const knowsName = P.knowledge.girl_name && !F.named && !F.calledName;
       const weapon = Combat.weaponOf(me);
       const wname = weapon ? ITEM_DEFS[weapon].name : null;
       const word = sayable(ui);
@@ -455,7 +482,6 @@ const Scenes = (() => {
       opts.push({ id: 'talk', label: '말을 걸어 본다' });
       if (word) opts.push({ id: 'say', label: '들은 말을 되풀이해 본다' });
       if (F.talked >= 2 && !F.named) opts.push({ id: 'name', label: '나를 가리키며 이름을 말한다' });
-      if (knowsName) opts.push({ id: 'callname', label: '「……리아?」 이름을 불러 본다', hint: '안다' });
       if (me.inv.herb && !F.gotHerb) {
         opts.push(P.knowledge.herb_heals
           ? { id: 'herb', label: '쓴 풀을 짓이겨 상처에 대어 준다', hint: '안다' }
@@ -468,6 +494,9 @@ const Scenes = (() => {
       opts.push({ id: 'leave', label: '그냥 지나간다', sep: true });
       const { idx, manner } = await ui.choose(opts);
       const a = opts[idx].id;
+      did.add(a);
+      // 삶의 기록: 사람을 대한 일 (물·풀을 건넨 것은 도움으로 따로 쌓인다)
+      if (a !== 'leave' && a !== 'water' && a !== 'herb') LifeLog.act(S, a === 'threat' || a === 'attack' ? 'fight' : 'talk', { min: 5 });
       let out = [], min = 5;
 
       if (a === 'stop') {
@@ -548,13 +577,6 @@ const Scenes = (() => {
         out = ['내 가슴을 가리킨다.', '「{이름}.」', '', '그녀가 눈을 깜빡인다.', '「……{이름}?」',
           '발음이 조금 이상하다. 하지만 분명 내 이름이다.', '', '그녀가 다시 자기 가슴을 두드린다.', '「리아.」', '「……리아.」', '',
           '그녀의 입꼬리가, 아주 조금 올라간다.'];
-      } else if (a === 'callname') {
-        F.calledName = true;
-        ui.relate('lia', { suspicion: 25, fear: 15, trust: -5 }, 'knew_name');
-        Memory.add(S, G, { type: 'strange', subject: 'player', detail: 'knew_my_name' });
-        out = ['「……리아?」', '', '그녀의 몸이 굳는다.', '단검이 완전히 뽑혀 나온다.',
-          ui.speak('「[[어떻게:40]]…… [[내:25]] [[이름을:35]]……?」'), '',
-          '……아차.', '이번의 그녀는, 나에게 이름을 알려 준 적이 없다.'];
       } else if (a === 'herb') {
         F.gotHerb = true;
         Player.take(me, 'herb');
@@ -644,7 +666,7 @@ const Scenes = (() => {
     }
   }
 
-  // ---------- 마을에 닿다 (예전 1장의 끝. 되감기가 없어져 이제 마을 생활로 이어진다) ----------
+  // ---------- 마을에 닿다 (이어서 마을 생활로) ----------
   // 마을이 어떤 모습인지는 그사이 세계에서 벌어진 일에 달려 있다 (소문, 리아의 생사와 위치, 문지기의 인상)
   function villageLines(ui) {
     const { S, W } = ui;
@@ -669,6 +691,7 @@ const Scenes = (() => {
     if (liaIn && Rel.get(W, 'lia', 'player').trust >= 30) {
       Npc.place(S, lia, 'village_gate');
       Rel.change(S, 'gatekeeper', 'player', { suspicion: -30, trust: 10 }, 'vouched');
+      W.worldFlags.vouched = true;
       return ['울타리 앞의 남자가 나를 보더니, 뒤를 돌아보며 무언가 외친다.', '……집들 사이에서, 팔에 천을 감은 여자가 나온다.',
         '리아다.', '그녀가 나를 보고, 아주 조금 웃는다.'];
     }
@@ -695,6 +718,7 @@ const Scenes = (() => {
     const { S, W, me } = ui;
     const G = W.npcs.lia;
     W.worldFlags.seen.arrival = true;
+    W.worldFlags.cameWithLia = true;
     Companion.join(S, 'lia');
     const route = Places.route(me.loc, 'village_gate');
     await ui.page(['그녀를 따라 걷는다.', '그녀는 몇 걸음마다 뒤를 돌아본다. 내가 따라오는지 확인하는 것처럼.']);
@@ -714,12 +738,13 @@ const Scenes = (() => {
     if (gk && gk.alive && Npc.at(W, 'gatekeeper', 'village_gate')) {
       Rumor.exchange(S, G, gk);
       Rel.change(S, 'gatekeeper', 'player', { suspicion: -30, trust: 10 }, 'vouched');
+      W.worldFlags.vouched = true;
       lines.push('', '울타리 앞의 남자가 리아를 보고 달려온다.', '둘이 빠르게 말을 주고받는다. 남자가 나를 한 번 훑어본다.', '……그리고 길을 비켜 준다.');
     }
     // 그녀는 집으로 간다. 함께 다니고 싶으면 다시 청해야 한다.
     Companion.leave(S, 'lia', 'home');
     Goals.add(G, { id: 'return_home', type: 'personal', priority: 90 }, W.time.t);
-    lines.push('', '리아가 집들 쪽을 가리키더니, 먼저 걸어 들어간다.');
+    lines.push('', '리아가 집들 쪽을 가리키더니, 먼저 걸어 들어간다.', '처마 밑에 마른 풀을 잔뜩 매단 집으로 들어간다.');
     Npc.startMove(S, G, G.location.home);
     W.worldFlags.feed.length = 0;
     await ui.page(lines);

@@ -6,7 +6,7 @@ const STAT_POINTS = 10; // 상태창이 열릴 때 받는 포인트
 const STAT_MAX = 10;
 const GRASP_REVEAL = 2; // 이만큼 몸을 써 봐야 그 능력치가 숫자로 보인다
 const GROW_EVERY = 6;   // 상태창이 열린 뒤, 이만큼 더 쓰면 그 능력치가 1 오른다
-const GROW_MAX = 2;     // 한 회차에 쓰면서 오를 수 있는 최대치 (능력치마다)
+const GROW_MAX = 2;     // 쓰면서 오를 수 있는 최대치 (능력치마다, 게임 전체에서)
 
 const hpMax = (me) => 7 + me.stats.vit;
 
@@ -28,6 +28,7 @@ const Player = (() => {
       magic: { mana: 5, maxMana: 5, talent: { light: 40, spirit: 55, life: 30 } },
       // 생활: 돈(동전), 한 일의 경향(분), 거처, 함께 다니는 사람, 진 빚, 마지막으로 쓰러진 시각
       money: 0, tendency: {}, lodging: null, companions: [], debts: [], lastCollapse: null,
+      life: LifeLog.create(), // 삶의 기록 (play/lifelog.js)
     };
   }
 
@@ -100,6 +101,12 @@ const Player = (() => {
     return true;
   }
   const label = (item, P) => { const d = ITEM_DEFS[item]; return d ? (d.label ? d.label(P) : d.name) : item; };
+  // 물건 설명 한 줄. 겉보기(desc)에, 알아낸 것이 있으면 그 줄(known: [사실, 문장])을 덧붙인다
+  const describe = (item, P) => {
+    const d = ITEM_DEFS[item];
+    if (!d || !d.desc) return null;
+    return d.known && P.knowledge[d.known[0]] ? `${d.desc} ${d.known[1]}` : d.desc;
+  };
 
   // ---------- 시간이 흐를 때 ----------
   // opt: { rest, sleep, move, fight } — 무엇을 하며 보냈는가. 느낌이 바뀌면 그 줄을 돌려준다.
@@ -123,7 +130,7 @@ const Player = (() => {
     const shelter = Places.has(me.loc, 'shelter');
     if (Weather.wet(W)) s.wet = clamp(s.wet + dt * (shelter ? 0.12 : 0.3));
     else s.wet = clamp(s.wet - dt * (Time.dark(W.time.t) ? 0.04 : 0.12));
-    const target = clamp((15 - Weather.temp(W)) * 4 + s.wet * 0.4 - (opt.move || opt.fight ? 10 : 0));
+    const target = clamp((15 - Weather.temp(W)) * 4 + s.wet * 0.4 - (opt.move || opt.fight ? 10 : 0) - (opt.cover ? 15 : 0));
     s.cold = clamp(s.cold + (target - s.cold) * Math.min(1, dt / 60));
     if (s.cold >= 90) {
       a.chill += dt;
@@ -217,7 +224,7 @@ const Player = (() => {
 
   return {
     create, use, hurt, heal, injure, bleeding, treat, ill, sicken, sheltered,
-    weight, carryLimit, give, take, wear, label, update, hpFeeling, barWords, statusLines, unlockStatus, teleport,
+    weight, carryLimit, give, take, wear, label, describe, update, hpFeeling, barWords, statusLines, unlockStatus, teleport,
   };
 })();
 

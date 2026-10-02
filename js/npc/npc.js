@@ -5,10 +5,14 @@ const Npc = (() => {
 
   function create(id, def) {
     const sched = typeof def.schedule === 'string' ? SCHEDULES[def.schedule] : def.schedule;
+    const chronic = Condition.create(def.condition); // 낫지 않는 몸 상태 [D9]
+    const maxH = chronic ? RULES.conditions[chronic.id].stages[chronic.stage].maxHealth : 100;
     return {
       id,
+      role: def.role || 'resident',              // resident | visitor
+      teach: def.teach ? clone(def.teach) : null, // 말을 가르쳐 주는 사람 [D11]
       identity: clone(def.identity),
-      physical: { health: 100, maxHealth: 100, bleed: 0, pain: 0, shock: 0, injured: false, wounds: [] },
+      physical: { health: maxH, maxHealth: maxH, bleed: 0, pain: 0, shock: 0, injured: false, wounds: [], chronic },
       mental: { fear: 0, stress: 10, mood: 60, alert: 20 },
       personality: clone(def.personality),
       needs: Object.assign({ hunger: 20, thirst: 20, fatigue: 20, health: 0, safety: 0, social: 30, money: 0 }, def.needs),
@@ -33,6 +37,18 @@ const Npc = (() => {
   }
 
   const createAll = () => Object.fromEntries(Object.entries(NPC_DEFS).map(([id, d]) => [id, create(id, d)]));
+
+  // 저장 파일을 불러올 때: 데이터에서 정하는 것(이름·역할·가르침·집·일정)을 지금의 NPC_DEFS에 맞춘다.
+  // 이름을 정하면 npcs.js 한 곳만 바꾸면 되고, 예전 저장 파일에도 그대로 들어간다 [D12]
+  function refresh(n, def) {
+    n.identity.name = def.identity.name;
+    n.role = def.role || 'resident';
+    n.teach = def.teach ? clone(def.teach) : null;
+    n.location.home = def.home;
+    if (def.condition && !n.physical.chronic) n.physical.chronic = Condition.create(def.condition);
+    if (n.physical.chronic) Condition.apply(n);
+    else n.schedule = clone(typeof def.schedule === 'string' ? SCHEDULES[def.schedule] : def.schedule);
+  }
 
   // 그 장소에 (지나가는 중이 아니라) 머물러 있는 산 NPC
   const here = (W, loc) => Object.values(W.npcs).filter((n) => n.alive && !n.location.transit && n.location.loc === loc);
@@ -109,10 +125,17 @@ const Npc = (() => {
     if (n.physical.health <= 0) kill(S, n, cause, by);
   }
 
-  // 죽음은 되돌리지 않는다 (같은 회차 안에서는). 되감기만이 시간을 되돌린다.
+  // 죽음은 되돌리지 않는다.
   function kill(S, n, cause, by) {
     if (!n.alive) return;
     const { W } = S;
+    // 죽지 않는 동안(flags.noDeath — 리아의 원정 채집 [D14]): 다쳐도 버틴다. 플레이어가 해친 것은 막지 않는다
+    if (n.flags.noDeath && by !== 'player') {
+      n.physical.health = Math.max(n.physical.health, 5);
+      n.physical.bleed = 0;
+      n.physical.injured = true;
+      return;
+    }
     n.alive = false;
     n.death = { cause, location: n.location.loc, timestamp: W.time.t, by: by || null };
     n.currentAction = null;
@@ -121,7 +144,7 @@ const Npc = (() => {
     Bus.emit(S, 'NPC_DIED', { npcId: n.id, cause, by: by || null, loc: n.location.loc });
   }
 
-  return { create, createAll, here, present, at, inRegion, atHome, speed, startMove, arrive, place, injure, hurt, kill };
+  return { create, createAll, refresh, here, present, at, inRegion, atHome, speed, startMove, arrive, place, injure, hurt, kill };
 })();
 
 if (typeof module !== 'undefined') module.exports = { Npc };

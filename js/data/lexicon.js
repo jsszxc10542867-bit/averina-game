@@ -68,6 +68,17 @@ const WORDS = [
   ['person', '사람', ['사람을', '사람'], 'basic', 3, 0.8],
   ['danger', '위험', ['위험해', '위험한', '위험'], 'basic', 3, 0.5],
   ['hurt', '다치다', ['다쳤어', '다쳤'], 'basic', 3, 0.5],
+  ['grandma', '할머니', ['할머니'], 'basic', 4, 0.4],  // 리아가 스승을 부르는 말 (스토리설계.md 단계 0~4 C)
+  // 마을의 첫 저녁에 듣는 말 (스토리설계.md 단계 5 장면 문장 C) — 난이도·빈도는 [후보]
+  ['meal', '밥', ['밥', '밥은'], 'basic', 2, 0.8],
+  ['sleep', '자다', ['자', '잘', '자고'], 'basic', 3, 0.7],
+  ['money', '돈', ['돈', '돈은'], 'basic', 2, 0.7],
+  ['room', '방', ['방', '방은'], 'basic', 3, 0.5],
+  ['work', '일', ['일', '일은'], 'basic', 2, 0.7],
+  ['tomorrow', '내일', ['내일'], 'basic', 3, 0.6],
+  ['today', '오늘', ['오늘은', '오늘'], 'basic', 3, 0.6],
+  ['end', '끝', ['끝'], 'basic', 2, 0.5],
+  ['ache', '아프다', ['아파', '아파요'], 'basic', 3, 0.5],
   ['okay', '괜찮다', ['괜찮아'], 'basic', 3, 0.7],
   ['thanks', '고맙다', ['고마워'], 'social', 3, 0.6],
   ['tree', '나무', ['나무'], 'nature', 1, 0.6],
@@ -109,11 +120,37 @@ const DIALOGUES = {
     text: '「[[어서:40]] [[와:40]]…… [[뭘:30]] [[찾아:35]]?」', tone: '말을 거는 것 같다. 경계하는 기색은 조금뿐이다.' },
   greet_warm: { lang: 'common_aver', semantic: { intent: 'greeting', target: 'listener', warm: true },
     text: '「[[왔어:30]]? [[괜찮아:30]]?」', tone: '반가워하는 것 같다.' },
+  // 처음 만날 때의 사람별 첫마디 (스토리설계.md 단계 5 장면 문장 C)
+  greet_innkeeper: { lang: 'common_aver', semantic: { intent: 'offer', subject: 'meal_room', target: 'listener' },
+    text: '「[[어서:40]] [[와:40]]. [[밥:20]]? [[방:30]]?」', tone: '먹을 것과 잘 곳을 묻는 것 같다.' },
+  greet_peer: { lang: 'common_aver', semantic: { intent: 'question', subject: 'origin', target: 'listener' },
+    text: '「[[너:20]]…… [[숲에서:20]] [[왔어:30]]?」', tone: '숲 쪽을 가리키며 무언가 묻는다. 겁먹은 기색은 없다.' },
+  greet_child: { lang: 'common_aver', semantic: { intent: 'question', subject: 'identity', target: 'listener' },
+    text: '「[[누구:20]]야? [[누구:20]]?」', tone: '무언가를 묻는다. 같은 말을 두 번.' },
+  greet_farmer: { lang: 'common_aver', semantic: { intent: 'question', subject: 'work', target: 'listener' },
+    text: '「…… [[일:30]]?」', tone: '짧게 묻는다. 괭이를 들어 보인다.' },
+  greet_merchant: { lang: 'common_aver', semantic: { intent: 'statement', subject: 'closed', target: 'listener' },
+    text: '「[[내일:30]]. [[오늘은:30]] [[끝:20]].」', tone: '오늘은 끝났다는 것 같다.' },
+  greet_herbalist: { lang: 'common_aver', semantic: { intent: 'statement', subject: 'stranger', target: 'listener' },
+    text: '「[[숲의:20]]…… [[이방인:40]].」', tone: '묻는 것 같지 않다. 이미 알고 있다는 투다.' },
+  greet_herbalist_unknown: { lang: 'common_aver', semantic: { intent: 'question', subject: 'identity', target: 'listener' },
+    text: '「……[[누구:20]]?」', tone: '누구냐고 묻는 것 같다.' },
 };
 
 // 소문을 말로 옮길 때 (통합 명세 18절). 단계가 오를수록 전달되며 변형된 것이다.
 // {actor} {target} {place} 는 말하는 사람이 아는 만큼 채워진다.
 const RUMOR_SPEECH = {
+  // 약재 부족 (시작마을.md 8절) [임시 문장]
+  herb_scarce: [
+    '「[[약초가:30]] [[없어:25]]. [[할머니:45]] [[상처에:40]] [[쓸:35]] [[것도:35]].」',
+    '「[[약초가:30]] [[귀해졌대:40]].」',
+    '「[[숲에서:20]] [[약초가:30]] [[다:25]] [[사라졌대:45]].」',
+  ],
+  herb_helped: [
+    '「[[{actor}:0]]가 [[약초를:30]] [[구해:35]] [[왔어:30]].」',
+    '「[[이방인이:40]] [[약초집을:35]] [[도왔대:40]].」',
+    '「[[이방인이:40]] [[숲의:20]] [[약초를:30]] [[다:25]] [[캐 왔대:45]].」',
+  ],
   helped: [
     '「[[{actor}:0]]가 [[물을:10]] [[줬어:30]]. [[상처도:35]] [[봐 줬고:35]].」',
     '「[[숲에서:20]] [[이방인이:40]] [[사람을:25]] [[도왔대:40]].」',

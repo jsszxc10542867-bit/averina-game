@@ -24,7 +24,7 @@ const Needs = (() => {
     x.thirst = clamp(x.thirst + dt * (p.bleed > 0 ? 0.06 : 0.035));
     if (act !== 'sleep' && act !== 'rest') x.fatigue = clamp(x.fatigue + dt * (act === 'work' || n.location.transit ? 0.05 : 0.025));
     x.social = clamp(x.social + dt * 0.01 * (n.personality.sociability / 50));
-    x.health = clamp((1 - p.health / p.maxHealth) * 100 + p.pain * 0.3 + (p.bleed > 0 ? 20 : 0));
+    x.health = clamp((1 - p.health / p.maxHealth) * 100 + p.pain * 0.3 + (p.bleed > 0 ? 20 : 0) + Condition.need(n));
     x.money = clamp(60 - n.money * 0.5);
     // 두려움은 위험이 없으면 천천히 가라앉는다 (용감할수록 빨리)
     n.mental.fear = clamp(n.mental.fear - dt * 0.02 * (0.5 + n.personality.bravery / 100));

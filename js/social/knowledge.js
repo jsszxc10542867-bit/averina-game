@@ -1,11 +1,11 @@
 // 지식 (통합 명세 19·20절). 플레이어가 아는 것과 NPC가 아는 것을 나눈다.
-// 플레이어가 보지 못한 일은 화면에 나오지 않는다. 플레이어의 지식(P.found)은 되감아도 남는다.
+// 플레이어가 보지 못한 일은 화면에 나오지 않는다. 플레이어의 지식은 P.found에 쌓인다.
 const Knowledge = (() => {
   // 장소를 아는 정도: 모름 → 멀리서 봄 → 가 봄 → 살펴봄 → 잘 앎
   const RANK = ['unknown', 'seen', 'visited', 'explored', 'known'];
   const KO = { seen: '멀리서 보았다', visited: '가 보았다', explored: '구석구석 살폈다', known: '잘 안다' };
 
-  function create() { return { locations: {}, npcs: {}, events: {}, rumors: {} }; }
+  function create() { return { locations: {}, npcs: {}, events: {}, rumors: {}, incidents: {} }; }
 
   const locState = (P, loc) => P.found.locations[loc] || 'unknown';
 
@@ -30,7 +30,45 @@ const Knowledge = (() => {
   function event(S, ev, how) {
     const f = S.P.found.events;
     if (f[ev.id] && f[ev.id].how === 'witnessed') return;
-    f[ev.id] = { type: ev.type, how, t: S.W.time.t, loc: ev.loc };
+    f[ev.id] = { type: ev.type, how, t: S.W.time.t, loc: ev.loc, subject: ev.data.subject || null, target: ev.data.target || null };
+  }
+
+  // 본 사건을 기록 화면의 문장으로 [임시: 스토리 담당이 다시 쓴다]. 플레이어가 아는 이름·겉모습으로만 부른다.
+  // (s, t): 사건의 주체·대상을 부르는 말. 'player'이면 null. 문장이 없는 사건은 기록에 넣지 않는다.
+  const J = (w, t) => w + Text.josa(w, t);
+  const EVENT_NOTES = {
+    helped: (s, t) => (!s ? `${J(t, '을를')} 도왔다.` : !t ? `${J(s, '이가')} 나를 도와주었다.` : `${J(s, '이가')} ${J(t, '을를')} 돕는 것을 보았다.`),
+    threatened: (s, t) => (!s ? `${J(t, '을를')} 위협했다.` : !t ? `${J(s, '이가')} 나를 위협했다.` : `${J(s, '이가')} ${J(t, '을를')} 위협하는 것을 보았다.`),
+    attacked: (s, t) => (!s ? `${J(t, '을를')} 공격했다.` : !t ? `${J(s, '이가')} 나를 공격했다.` : `${J(s, '이가')} ${J(t, '을를')} 공격하는 것을 보았다.`),
+    beast_attack: (s, t) => (t ? `${J(s, '이가')} ${J(t, '을를')} 덮치는 것을 보았다.` : `${J(s, '이가')} 나를 덮쳤다.`),
+    beast_encounter: (s) => `${J(s, '과와')} 마주쳤다.`,
+    magic: (s) => s && `${J(s, '이가')} 손끝에서 빛을 내는 것을 보았다.`,
+    theft: (s) => s && `${J(s, '이가')} 무언가를 몰래 챙기는 것을 보았다.`,
+    rescued_player: (s, t) => t && `쓰러져 있던 나를 ${J(t, '이가')} 돌봐 주었다.`,
+    player_worked: (s, t) => t && `${t}의 일을 거들었다.`,
+    betrayal: (s, t) => (!t ? `${J(s, '이가')} 등을 돌리고 떠났다.` : `${J(s, '이가')} ${J(t, '을를')} 배신하는 것을 보았다.`),
+    merchant_left: (s) => `${J(s, '이가')} 마을을 떠났다.`,
+    found_dead: (s, t) => t && `${J(t, '이가')} 죽은 채 발견되었다.`,
+    death_witnessed: (s, t) => t && `${J(t, '이가')} 숨을 거두는 것을 보았다.`,
+  };
+  // 플레이어가 그 존재를 부르는 말
+  function called(S, id) {
+    if (!id || id === 'player') return null;
+    const n = S.W.npcs[id];
+    if (n) { const f = S.P.found.npcs[id]; return f && f.name ? f.name : n.identity.desc; }
+    if (S.W.creatures[id]) return S.P.knowledge.beast_seen ? '눈이 셋인 짐승' : '무언가';
+    return '누군가';
+  }
+  // [{ id, t, how, text }] 시각 순. how: witnessed | trace | rumor
+  function eventLines(S) {
+    return Object.entries(S.P.found.events).map(([id, f]) => {
+      const note = EVENT_NOTES[f.type];
+      if (!note) return null;
+      let { subject, target } = f;
+      if (subject === undefined) { const ev = S.W.events.log.find((e) => e.id === id); if (!ev) return null; subject = ev.data.subject; target = ev.data.target; }
+      const text = note(called(S, subject), called(S, target));
+      return text ? { id, t: f.t, how: f.how, text } : null;
+    }).filter(Boolean).sort((a, b) => a.t - b.t);
   }
   function rumor(S, rumorId, level) {
     const f = S.P.found.rumors;
@@ -56,7 +94,7 @@ const Knowledge = (() => {
     });
   });
 
-  return { RANK, KO, create, locState, location, meet, learnName, event, rumor, npcKnows, npcLearn };
+  return { RANK, KO, create, locState, location, meet, learnName, event, eventLines, rumor, npcKnows, npcLearn };
 })();
 
 if (typeof module !== 'undefined') module.exports = { Knowledge };

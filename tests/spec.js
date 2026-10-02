@@ -15,6 +15,7 @@ function to(S, d, h, m = 0, opt = {}) {
 }
 function run(S, min, opt = {}) { to(S, 1, 0, S.W.time.t + min, opt); }
 const lia = (S) => S.W.npcs.lia;
+function inVillage(S, loc, d = 1, h = 9) { to(S, d, h); Player.teleport(S, loc); }
 const snap = (S) => JSON.stringify(Object.values(S.W.npcs).map((n) => [n.id, n.location.loc, n.location.transit, n.currentAction && n.currentAction.type, Math.round(n.needs.hunger), Math.round(n.physical.health)]));
 function atHollowWithLia(S) {
   to(S, 2, 7, 10);
